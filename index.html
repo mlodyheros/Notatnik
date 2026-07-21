@@ -461,124 +461,11 @@ function customPrompt(message, defaultValue="", { title="Nazwa" } = {}){
   });
 }
 
-/* ======================= DANE STARTOWE ======================= */
-const SEED_UTM = {
-  name: "🇨🇦 Lista przed wyjazdem — UTM",
-  categories: [
-    { name: "🛏️ Pokój (Roy Ivor Hall)", items: [
-      "Pościel — poszwa na kołdrę + poszewka na poduszkę (Twin XL, 96×203 cm)",
-      "Prześcieradło (Twin XL)","Koc / dodatkowy pled","Poduszka (na miejscu)",
-      "Ochraniacz na materac","Wieszaki do szafy","Organizer pod łóżko / na szafę",
-      "Lampka na biurko","Listwa zasilająca / przedłużacz (typ A/B, 120V)",
-      "Zamek / kłódka do szafki lub walizki","Dekoracje — plakaty, lampki LED, zdjęcia z domu",
-      "Mata / dywanik pod biurko","Kosz na śmieci + worki","Wentylator (może)",
-      "Worek na pranie / kosz na brudne ubrania"
-    ]},
-    { name: "🚿 Łazienka", items: [
-      "Szczoteczka do zębów + zapasowe główki","Pasta do zębów","Mydło / żel pod prysznic",
-      "Szampon i odżywka","Dezodorant","Ręcznik kąpielowy (2 szt.)","Ręcznik na siłownię + basen",
-      "Kosmetyczka","Krem do twarzy / balsam do ciała","Maszynka do golenia + żel","Wkłady do maszynki",
-      "Nożyczki do paznokci / cążki","Suszarka do włosów (120V)","Szczotka/grzebień",
-      "Apteczka podróżna (plastry, ibuprofen, węgiel, coś na przeziębienie)",
-      "Recepty / leki na stałe — zapas + opis po angielsku od lekarza","SPF"
-    ]},
-    { name: "💻 Nauka / studia", items: [
-      "Laptop","Ładowarka do laptopa","Powerbank","Adapter wtyczki PL→CA (typ A/B)",
-      "Listwa zasilająca z portami USB","Słuchawki nauszne + douszne","Plecak na zajęcia","Torba sportowa",
-      "Zeszyty / notatniki","Długopisy, ołówki, mazaki, korektor","Kalkulator",
-      "Segregatory / teczki na dokumenty","Karteczki samoprzylepne","Dysk zewnętrzny / pendrive",
-      "Podkładka pod mysz + mysz","Kłódka do szafki na siłowni/w bibliotece"
-    ]},
-    { name: "👕 Ubrania", items: [
-      "Kurtka zimowa (letnia + mocna zimowa)","Czapka, szalik, rękawiczki","Bluzy / swetry",
-      "Koszulki / t-shirty","Spodnie / jeansy","Bielizna termiczna","Piżama",
-      "Bielizna — zapas na ok. 2 tygodnie","Skarpetki — zapas","Strój formalny",
-      "Strój na siłownię / sportowy","Kostium kąpielowy","Parasol","Kurtka przeciwdeszczowa",
-      "Torba/plecak wodoodporny na książki w deszcz","Buty zimowe wodoodporne","Buty na co dzień",
-      "Klapki na basen / pod prysznic","Klapki/Crocsy","Korki","Buty do biegania",
-      "Buty na hale sportowe","Buty eleganckie","Pasek do spodni"
-    ]},
-    { name: "🍳 Kuchnia (wspólne miejsce, własne naczynia obowiązkowe)", items: [
-      "Talerz, miska, kubek — swoje, podpisane","Sztućce (widelec, nóż, łyżka, łyżeczka)",
-      "Butelka na wodę wielokrotnego użytku","Kubek termiczny na kawę/herbatę",
-      "Otwieracz do puszek / butelek","Mały garnek / patelnia","Pojemniki plastikowe na jedzenie",
-      "Ścierka kuchenna, gąbka, płyn do naczyń","Przyprawy podstawowe (na miejscu)",
-      "Czajnik elektryczny (jeśli brak w kuchni)"
-    ]},
-    { name: "📄 Dokumenty i finanse", items: [
-      "Paszport (ważność min. 6 mies. po powrocie)","Study Permit / list akceptacyjny z UTM",
-      "Potwierdzenie zakwaterowania","Dowód szczepień / karta zdrowia","Ubezpieczenie zdrowotne/podróżne",
-      "Kopie dokumentów (skan + wydruk osobno)","Zdjęcia paszportowe (zapas)",
-      "Karta płatnicza międzynarodowa (Revolut/Wise + bank)","Trochę gotówki w CAD",
-      "Prawo jazdy (jeśli masz)","Numer kontaktu awaryjnego zapisany na papierze","Legitymacja / ISIC"
-    ]},
-    { name: "🎒 Własne akcesoria", items: [
-      "Zegarek","Okulary przeciwsłoneczne","Portfel + card holder","Mała torba na wycieczki / plecak miejski",
-      "Etui na laptop","Menedżer haseł skonfigurowany","Ulubiona książka / coś osobistego z domu",
-      "Zdjęcia rodziny / bliskich","Flaga Polski","Gra karciana / talia kart"
-    ]},
-    { name: "🧳 Praktyczne dodatki podróżne", items: [
-      "Poduszka podróżna do samolotu","Bagaż podręczny w limicie linii lotniczej",
-      "Etykiety na walizki z danymi kontaktowymi","Waga bagażowa","Pokrowiec na walizkę",
-      "Melatonina / coś na jet lag"
-    ]}
-  ]
-};
-
-const SEED_OPOLE = {
-  name: "Opole Pakowanie",
-  categories: [
-    { name: "👕 Ubrania", items: [
-      "Majtki","Skarpetki","Buty do biegania/grania/góry","Buty do chodzenia","Kąpielówki",
-      "Krótkie spodenki","Długie spodnie / Dresy","Koszulki","Bluzy","Czapka z daszkiem",
-      "Koszulka dla Hani","Rzeczy sportowe","Pasek"
-    ]},
-    { name: "🕶️ Akcesoria", items: [
-      "Okulary na słońce","Krzyżyk","Zegarek Garmin + MB"
-    ]},
-    { name: "🔑 Inne", items: [
-      "Legitymacja","Tabletki","Krem do ust","Portfel","Książka dla Hani","Macbook",
-      "Ładowarkę do Macbooka","Ładowarkę do telefonu i słuchawek","Słuchawki","AirTag"
-    ]},
-    { name: "🧴 Kosmetyczka", items: [
-      "Golarka","Krem po goleniu","Szczoteczka elektryczna","Ładowarka do szczoteczki",
-      "Perfumy 2szt","Szampon","Płyn do mycia ciała","Żel do włosów","Woda w spreju",
-      "Sprej do włosów","SPF","Krem do twarzy","Cążki","Nitka do zębów","Dezodorant",
-      "Nakładki na zęby","Obcinaczki do paznokci","Skin Cleaner"
-    ]}
-  ],
-  // pozycje, które w Twoim eksporcie były już odznaczone (przekreślone)
-  checkedTexts: ["Szampon","Woda w spreju","Dezodorant"]
-};
-
-function buildSeedOpole(){
-  const nb = { id: uid("nb"), name: SEED_OPOLE.name, isUtm:false, categories: [] };
-  SEED_OPOLE.categories.forEach(c => {
-    const cat = { id: uid("cat"), name: c.name, items: [] };
-    c.items.forEach(text => {
-      const it = { id: uid("it"), text, note:"", priority:false, qty:"" };
-      cat.items.push(it);
-      if(SEED_OPOLE.checkedTexts.includes(text)) state.checked[it.id] = true;
-    });
-    nb.categories.push(cat);
-  });
-  return nb;
-}
 const STORAGE_KEY = "notebooks-app-state-v2";
 const OLD_KEY_V1 = "notebooks-app-state-v1";
 const OLD_KEY_V0 = "utm-packing-checklist-state";
 
 function uid(prefix){ return `${prefix}-${Date.now()}-${Math.floor(Math.random()*100000)}`; }
-
-function buildSeedNotebook(){
-  const nb = { id: uid("nb"), name: SEED_UTM.name, isUtm:true, categories: [] };
-  SEED_UTM.categories.forEach(c => {
-    const cat = { id: uid("cat"), name: c.name, items: [] };
-    c.items.forEach(text => cat.items.push({ id: uid("it"), text, note:"", priority:false, qty:"" }));
-    nb.categories.push(cat);
-  });
-  return nb;
-}
 
 let state = { notebooks: [], checked: {}, activeId: null };
 let filter = "all"; // all | active | done
@@ -592,10 +479,6 @@ function loadState(){
       const parsed = JSON.parse(raw);
       state = { notebooks: parsed.notebooks || [], checked: parsed.checked || {}, activeId: null };
       state.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
-      if(!state.notebooks.some(nb => nb.name === SEED_OPOLE.name)){
-        state.notebooks.push(buildSeedOpole());
-        saveState();
-      }
       return;
     }
   }catch(e){ console.error("Błąd wczytywania", e); toast("Nie udało się wczytać zapisanych danych.", "error"); }
@@ -613,22 +496,8 @@ function loadState(){
     }
   }catch(e){ /* ignoruj */ }
 
-  // pierwsze uruchomienie / migracja z bardzo starej wersji
-  let seed = buildSeedNotebook();
-  try{
-    const rawV0 = localStorage.getItem(OLD_KEY_V0);
-    if(rawV0){
-      const old = JSON.parse(rawV0);
-      if(old.checked){
-        seed.categories.forEach((cat, ci) => cat.items.forEach((it, ii) => {
-          const oldId = `c${ci}-i${ii}`;
-          if(old.checked[oldId]) state.checked[it.id] = true;
-        }));
-      }
-    }
-  }catch(e){ /* ignoruj */ }
-  const opole = buildSeedOpole();
-  state.notebooks = [seed, opole];
+  // pierwsze uruchomienie w tej przeglądarce — pusty notatnik, bez gotowych danych
+  state.notebooks = [];
 }
 
 function saveState(){
@@ -1266,3 +1135,4 @@ renderMenu();
 
 </body>
 </html>
+
