@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1115">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mój notatnik</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --border:#262b35; --text:#e6e8ec;
+    --muted:#8b93a1; --accent:#5ea1ff; --done:#3ddc84; --danger:#ff6b6b;
+  }
+  body.light-theme{
+    --bg:#f5f6f8; --card:#ffffff; --border:#dfe3ea; --text:#1a1d24;
+    --muted:#6b7280; --accent:#2563eb; --done:#17a361; --danger:#dc2626;
+  }
+  body{transition:background-color .2s ease, color .2s ease;}
+  .cat, .nb-card, .add-cat-row input, .add-row input, dialog, .toast{transition:background-color .2s ease, border-color .2s ease, color .2s ease;}
+  .theme-toggle{font-size:16px; min-width:40px;}
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    margin:0; padding:0 16px 110px; scroll-padding-bottom:110px;
+  }
+  h1{font-size:22px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:14px; margin-bottom:16px;}
+  .note{
+    background:#1b2230; border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; font-size:13px; color:var(--muted); margin-bottom:18px; line-height:1.5;
+  }
+  .note b{color:var(--text)}
+  .hidden{display:none !important;}
+  a{color:var(--accent);}
+
+  #menuScreen, #notebookScreen{animation:screenIn .32s ease both;}
+  @keyframes screenIn{
+    from{opacity:0; transform:translateY(10px) scale(.99);}
+    to{opacity:1; transform:translateY(0) scale(1);}
+  }
+
+  /* ---------- pasek górny (sticky) ---------- */
+  .top-bar{
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    padding-top:20px; padding-bottom:10px; margin-bottom:6px;
+    border-bottom:1px solid transparent;
+  }
+  .top-bar.scrolled{border-bottom-color:var(--border);}
+  .menu-top-row{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .menu-top-actions{display:flex; gap:8px;}
+
+  /* ---------- MENU GŁÓWNE ---------- */
+  .menu-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px; margin-top:6px;
+  }
+  .nb-card{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; cursor:pointer; position:relative;
+    transition:border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+    animation:itemIn .28s ease both;
+  }
+  .nb-card:hover{
+    border-color:var(--accent); transform:translateY(-4px) scale(1.01);
+    box-shadow:0 10px 24px -8px rgba(94,161,255,.35);
+  }
+  .nb-card:active{transform:translateY(-1px) scale(.99);}
+  .nb-card .nb-name{font-size:15.5px; font-weight:600; margin-bottom:10px; padding-right:44px; word-break:break-word;}
+  .nb-card .nb-meta{font-size:12px; color:var(--muted); margin-bottom:10px;}
+  .nb-card .progress-bar{height:6px;}
+  .nb-actions{position:absolute; top:10px; right:8px; display:none; gap:2px;}
+  .nb-card:hover .nb-actions, .nb-card:focus-within .nb-actions{display:flex;}
+  .nb-card.new-card{
+    display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
+    border-style:dashed; color:var(--muted); min-height:104px;
+  }
+  .nb-card.new-card:hover{color:var(--accent);}
+  .nb-card.new-card .plus{font-size:26px; line-height:1;}
+
+  .nb-card:nth-child(1){animation-delay:.02s;} .nb-card:nth-child(2){animation-delay:.06s;}
+  .nb-card:nth-child(3){animation-delay:.10s;} .nb-card:nth-child(4){animation-delay:.14s;}
+  .nb-card:nth-child(5){animation-delay:.18s;} .nb-card:nth-child(6){animation-delay:.22s;}
+  .nb-card:nth-child(n+7){animation-delay:.26s;}
+  .cat:nth-child(1){animation-delay:.02s;} .cat:nth-child(2){animation-delay:.06s;}
+  .cat:nth-child(3){animation-delay:.10s;} .cat:nth-child(4){animation-delay:.14s;}
+  .cat:nth-child(5){animation-delay:.18s;} .cat:nth-child(n+6){animation-delay:.20s;}
+
+  /* ---------- wspólne ---------- */
+  .progress-bar{height:8px; background:var(--border); border-radius:6px; overflow:hidden;}
+  .progress-fill{
+    height:100%; background:var(--done); width:0%;
+    transition:width .4s cubic-bezier(.4,0,.2,1);
+    background-image:linear-gradient(90deg, var(--done), #7ff0aa, var(--done));
+    background-size:200% 100%; animation:shimmer 2.5s linear infinite;
+  }
+  @keyframes shimmer{0%{background-position:0% 0;} 100%{background-position:-200% 0;}}
+  .progress-label{font-size:12px; color:var(--muted); margin-top:6px;}
+  .progress-label.done{color:var(--done); font-weight:600; animation:doneBounce .5s ease;}
+  @keyframes doneBounce{0%{transform:scale(1);} 30%{transform:scale(1.12);} 60%{transform:scale(.97);} 100%{transform:scale(1);}}
+  .confetti{position:fixed; top:-10px; width:8px; height:14px; pointer-events:none; z-index:80; animation:confettiFall linear forwards;}
+  @keyframes confettiFall{from{transform:translateY(0) rotate(0deg); opacity:1;} to{transform:translateY(110vh) rotate(540deg); opacity:.9;}}
+
+  .nb-header-row{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .back-btn{
+    background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text);
+    padding:8px 12px; cursor:pointer; font-size:13px; flex-shrink:0; min-height:40px;
+  }
+  .back-btn:hover{border-color:var(--accent);}
+  .nb-title{font-size:19px; font-weight:700; display:flex; align-items:center; gap:8px; flex:1; min-width:0;}
+  .nb-title span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .nb-title .action-btn{opacity:.55;}
+  .nb-title .action-btn:hover{opacity:1;}
+
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+  .toolbar input[type=search]{
+    flex:1; min-width:160px; background:var(--card); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:9px 12px; font-size:14px;
+  }
+  .toolbar input[type=search]:focus{outline:none; border-color:var(--accent);}
+  .filter-chip{
+    background:var(--card); border:1px solid var(--border); border-radius:20px; color:var(--muted);
+    padding:7px 13px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .filter-chip.active{border-color:var(--accent); color:var(--accent);}
+
+  .cat{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    margin-bottom:16px; overflow:hidden; animation:itemIn .25s ease both;
+  }
+  .cat.drag-over{border-color:var(--accent); box-shadow:0 0 0 2px rgba(94,161,255,.25) inset;}
+  .cat-header{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 10px 14px 6px; cursor:pointer; user-select:none; gap:6px;
+  }
+  .drag-handle{
+    cursor:grab; color:var(--muted); font-size:15px; padding:4px 6px; touch-action:none; flex-shrink:0;
+  }
+  .drag-handle:active{cursor:grabbing;}
+  .cat-title{font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; min-width:0; flex:1;}
+  .cat-title span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cat-count{font-size:12px; color:var(--muted); font-weight:400; flex-shrink:0;}
+  .cat-header-actions{display:flex; gap:0; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;}
+  .cat-header-actions .action-btn{min-width:30px; min-height:30px; padding:5px; font-size:13px;}
+  .cat-header-actions .action-btn:disabled{opacity:.25; cursor:default;}
+  .cat-header-actions .action-btn:disabled:hover{background:none; color:var(--muted);}
+  .chev{color:var(--muted); transition:transform .2s; font-size:13px; flex-shrink:0; padding:4px;}
+  .cat.collapsed .chev{transform:rotate(-90deg);}
+  .items{
+    padding:0 12px 12px; max-height:6000px; opacity:1; overflow:hidden;
+    transition:max-height .35s ease, opacity .25s ease, padding .25s ease;
+  }
+  .cat.collapsed .items{max-height:0; opacity:0; padding-top:0; padding-bottom:0;}
+
+  .item{
+    display:flex; align-items:flex-start; gap:4px; padding:4px;
+    border-top:1px solid var(--border); position:relative;
+    animation:itemIn .28s ease both;
+  }
+  .item:first-child{border-top:none;}
+  .item.removing{animation:itemOut .2s ease forwards;}
+  .item.drag-ghost{opacity:.35;}
+  @keyframes itemIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes itemOut{
+    from{opacity:1; transform:translateX(0); max-height:60px;}
+    to{opacity:0; transform:translateX(14px); max-height:0; padding-top:0; padding-bottom:0; margin:0;}
+  }
+  @keyframes checkPop{0%{transform:scale(1);} 40%{transform:scale(1.35);} 100%{transform:scale(1);}}
+  .item .check-wrap{
+    display:flex; align-items:center; justify-content:center;
+    width:44px; height:44px; margin:-10px 0; flex-shrink:0; cursor:pointer;
+  }
+  .item input[type=checkbox]{
+    width:20px; height:20px; accent-color:var(--done); cursor:pointer;
+  }
+  .item input[type=checkbox].pop{animation:checkPop .28s ease;}
+  .item-drag-handle{
+    cursor:grab; color:var(--muted); font-size:14px; padding:10px 4px; touch-action:none; flex-shrink:0; align-self:center;
+  }
+  .item-body{flex:1; min-width:0; padding:6px 0;}
+  .item label{font-size:14.5px; cursor:pointer; line-height:1.4; transition:color .2s ease; display:block; word-break:break-word;}
+  .item .item-note{font-size:12px; color:var(--muted); margin-top:2px; word-break:break-word;}
+  .item.checked label{color:var(--muted); text-decoration:line-through;}
+  .item.priority{background:rgba(255,209,102,.06); border-left:2px solid #ffd166; margin-left:-2px; padding-left:6px;}
+  .star-btn{color:var(--muted);}
+  .star-btn.active{color:#ffd166;}
+  .star-btn.active:hover{background:rgba(255,209,102,.15); color:#ffd166;}
+  .item-actions{display:flex; gap:0; flex-shrink:0; align-self:center; flex-wrap:wrap; justify-content:flex-end; max-width:150px;}
+  .item-actions .action-btn{min-width:30px; min-height:30px; padding:5px; font-size:13px;}
+  .item-actions .action-btn:disabled{opacity:.25; cursor:default;}
+  .item-actions .action-btn:disabled:hover{background:none; color:var(--muted);}
+  .action-btn{
+    background:none; border:none; color:var(--muted); font-size:15px; cursor:pointer;
+    padding:8px; line-height:1; border-radius:8px; min-width:36px; min-height:36px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .action-btn:hover{color:var(--accent); background:#1e2432;}
+  .action-btn.del-btn:hover{color:var(--danger); background:#2a1a1a;}
+
+  /* na dotyku / bez hovera: akcje zawsze widoczne */
+  @media (hover:none){
+    .nb-actions, .cat-header-actions, .item-actions{display:flex !important;}
+  }
+  @media (hover:hover){
+    .item-actions, .cat-header-actions{opacity:0; transition:opacity .12s ease;}
+    .item:hover .item-actions, .item:focus-within .item-actions{opacity:1;}
+    .cat-header:hover .cat-header-actions, .cat-header:focus-within .cat-header-actions{opacity:1;}
+  }
+
+  .add-row{display:flex; gap:8px; padding:10px 4px 4px; border-top:1px solid var(--border); margin-top:4px;}
+  .add-row input[type=text]{
+    flex:1; background:#0f1218; border:1px solid var(--border); border-radius:6px;
+    color:var(--text); padding:9px 9px; font-size:13.5px; min-height:38px;
+  }
+  .add-row input[type=text]:focus{outline:none; border-color:var(--accent);}
+  .add-row button{padding:8px 14px; font-size:13px; min-height:38px;}
+  .add-cat-row{display:flex; gap:8px; margin-bottom:20px;}
+  .add-cat-row input[type=text]{
+    flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:10px 12px; font-size:14px; min-height:42px;
+  }
+  .add-cat-row input[type=text]:focus{outline:none; border-color:var(--accent);}
+
+  .footer-bar{
+    position:fixed; bottom:0; left:0; right:0; background:#12141ae8; backdrop-filter:blur(6px);
+    border-top:1px solid var(--border); padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+    display:flex; gap:10px; justify-content:center; flex-wrap:wrap; z-index:20;
+  }
+  button{
+    background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:9px 14px; font-size:13px; cursor:pointer; min-height:40px;
+    transition:transform .1s ease, border-color .15s ease;
+  }
+  button:hover{border-color:var(--accent);}
+  button:active{transform:scale(.94);}
+  button.reset{color:var(--danger); border-color:#3a2222;}
+  .edit-inline{
+    flex:1; background:#0f1218; border:1px solid var(--accent); border-radius:6px;
+    color:var(--text); padding:6px 8px; font-size:14px; min-width:0; min-height:34px;
+  }
+
+  /* ---------- dialog / modal ---------- */
+  dialog{
+    background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:14px;
+    padding:0; width:min(420px, 92vw); box-shadow:0 20px 50px -12px rgba(0,0,0,.6);
+  }
+  dialog::backdrop{background:rgba(0,0,0,.55); backdrop-filter:blur(2px);}
+  dialog[open]{animation:dialogIn .18s ease both;}
+  @keyframes dialogIn{from{opacity:0; transform:translateY(8px) scale(.97);} to{opacity:1; transform:translateY(0) scale(1);}}
+  .dlg-body{padding:20px;}
+  .dlg-title{font-size:16px; font-weight:700; margin-bottom:8px;}
+  .dlg-msg{font-size:13.5px; color:var(--muted); margin-bottom:14px; line-height:1.5;}
+  .dlg-input{
+    width:100%; background:#0f1218; border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:10px 12px; font-size:14px; margin-bottom:14px;
+  }
+  .dlg-input:focus{outline:none; border-color:var(--accent);}
+  .dlg-actions{display:flex; justify-content:flex-end; gap:8px;}
+  .dlg-actions button{min-height:38px;}
+  .dlg-actions .primary{background:var(--accent); border-color:var(--accent); color:#08131f; font-weight:600;}
+  .dlg-actions .danger{background:var(--danger); border-color:var(--danger); color:#2a0a0a; font-weight:600;}
+
+  /* ---------- toast ---------- */
+  #toastWrap{
+    position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:100;
+    display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none;
+  }
+  .toast{
+    background:#1c212c; border:1px solid var(--border); color:var(--text); font-size:13px;
+    padding:10px 16px; border-radius:10px; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
+    animation:toastIn .2s ease both;
+  }
+  .toast.error{border-color:var(--danger); color:#ffb4b4;}
+  .toast.success{border-color:var(--done); color:#b8f5cf;}
+  .toast.out{animation:toastOut .25s ease forwards;}
+  @keyframes toastIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);}}
+  @keyframes toastOut{to{opacity:0; transform:translateY(-8px);}}
+
+  .visually-hidden{
+    position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div id="toastWrap" aria-live="polite"></div>
+
+<!-- ====== MENU GŁÓWNE ====== -->
+<div id="menuScreen">
+  <div class="top-bar" id="menuTopBar">
+    <div class="menu-top-row">
+      <div>
+        <h1>📒 Mój notatnik</h1>
+        <div class="sub">Wybierz listę albo stwórz nową.</div>
+      </div>
+      <div class="menu-top-actions">
+        <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny">🌙</button>
+        <button id="exportBtn" aria-label="Eksportuj wszystkie notatniki do pliku JSON">⬇ Eksport</button>
+        <button id="importBtn" aria-label="Importuj notatniki z pliku JSON">⬆ Import</button>
+        <input type="file" id="importFile" accept="application/json" class="hidden">
+      </div>
+    </div>
+  </div>
+  <div class="menu-grid" id="menuGrid"></div>
+</div>
+
+<!-- ====== WIDOK POJEDYNCZEGO NOTATNIKA ====== -->
+<div id="notebookScreen" class="hidden">
+  <div class="top-bar" id="nbTopBar">
+    <div class="nb-header-row">
+      <button class="back-btn" id="backBtn" aria-label="Wróć do menu głównego">← Menu</button>
+      <div class="nb-title" id="nbTitleWrap">
+        <span id="nbTitleText"></span>
+        <button class="action-btn" id="nbEditBtn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika">✎</button>
+      </div>
+      <button id="themeToggleBtn2" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny">🌙</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">0 / 0</div>
+  </div>
+
+  <div class="note hidden" id="utmNote">
+    <b>Co daje akademik (Roy Ivor Hall):</b> umeblowany pokój jednoosobowy (łóżko 96×203 cm, biurko, krzesło, szafa), półprywatna łazienka, wspólna kuchnia z kuchenką i lodówką, internet, karta na pralnię ($100).
+    <b>Czego NIE daje:</b> pościeli, ręczników, naczyń/sztućców, kosmetyków, dekoracji, drobnego sprzętu kuchennego.
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="searchInput" placeholder="Szukaj pozycji..." aria-label="Szukaj pozycji w notatniku">
+    <button class="filter-chip active" data-filter="all" aria-pressed="true">Wszystko</button>
+    <button class="filter-chip" data-filter="active" aria-pressed="false">Do zrobienia</button>
+    <button class="filter-chip" data-filter="done" aria-pressed="false">Zrobione</button>
+    <button class="filter-chip" id="hideDoneToggle" aria-pressed="false">🙈 Ukryj ukończone</button>
+  </div>
+
+  <div class="add-cat-row">
+    <input type="text" id="newCatInput" placeholder="Nazwa nowej kategorii, np. 🏋️ Siłownia..." aria-label="Nazwa nowej kategorii">
+    <button id="addCatBtn">+ Kategoria</button>
+  </div>
+
+  <div id="categories"></div>
+</div>
+
+<div class="footer-bar">
+  <button id="expandAll" class="hidden">Rozwiń</button>
+  <button id="collapseAll" class="hidden">Zwiń</button>
+  <button class="reset hidden" id="resetAll">Wyczyść zaznaczenia</button>
+  <button class="reset hidden" id="deleteCheckedBtn">Usuń zaznaczone</button>
+  <button class="reset hidden" id="deleteNbBtn">Usuń ten notatnik</button>
+</div>
+
+<!-- ====== DIALOGI ====== -->
+<dialog id="confirmDialog">
+  <div class="dlg-body">
+    <div class="dlg-title" id="confirmTitle">Potwierdź</div>
+    <div class="dlg-msg" id="confirmMsg"></div>
+    <div class="dlg-actions">
+      <button id="confirmCancel">Anuluj</button>
+      <button class="danger" id="confirmOk">Usuń</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="promptDialog">
+  <div class="dlg-body">
+    <div class="dlg-title" id="promptTitle">Nazwa</div>
+    <input type="text" class="dlg-input" id="promptInput">
+    <div class="dlg-actions">
+      <button id="promptCancel">Anuluj</button>
+      <button class="primary" id="promptOk">OK</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* ======================= MOTYW ======================= */
+const THEME_KEY = "notebook-theme";
+function applyTheme(theme){
+  document.body.classList.toggle("light-theme", theme === "light");
+  const icon = theme === "light" ? "☀️" : "🌙";
+  ["themeToggleBtn","themeToggleBtn2"].forEach(id => { const b = document.getElementById(id); if(b) b.textContent = icon; });
+}
+function getTheme(){
+  try{
+    const saved = localStorage.getItem(THEME_KEY);
+    if(saved) return saved;
+  }catch(e){}
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+function toggleTheme(){
+  const next = document.body.classList.contains("light-theme") ? "dark" : "light";
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+}
+applyTheme(getTheme());
+document.getElementById("themeToggleBtn").onclick = toggleTheme;
+document.getElementById("themeToggleBtn2").onclick = toggleTheme;
+
+/* ======================= TOASTY ======================= */
+function toast(msg, type=""){
+  const wrap = document.getElementById("toastWrap");
+  const el = document.createElement("div");
+  el.className = "toast" + (type ? " " + type : "");
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.classList.add("out");
+    setTimeout(() => el.remove(), 260);
+  }, 2600);
+}
+
+/* ======================= DIALOGI (zamiast confirm/prompt) ======================= */
+function customConfirm(message, { title="Potwierdź", okLabel="Usuń" } = {}){
+  return new Promise(resolve => {
+    const dlg = document.getElementById("confirmDialog");
+    document.getElementById("confirmTitle").textContent = title;
+    document.getElementById("confirmMsg").textContent = message;
+    const okBtn = document.getElementById("confirmOk");
+    const cancelBtn = document.getElementById("confirmCancel");
+    okBtn.textContent = okLabel;
+    function cleanup(result){
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      dlg.removeEventListener("cancel", onCancel);
+      dlg.close();
+      resolve(result);
+    }
+    function onOk(){ cleanup(true); }
+    function onCancel(){ cleanup(false); }
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    dlg.addEventListener("cancel", onCancel);
+    dlg.showModal();
+  });
+}
+
+function customPrompt(message, defaultValue="", { title="Nazwa" } = {}){
+  return new Promise(resolve => {
+    const dlg = document.getElementById("promptDialog");
+    document.getElementById("promptTitle").textContent = title;
+    const input = document.getElementById("promptInput");
+    input.value = defaultValue;
+    const okBtn = document.getElementById("promptOk");
+    const cancelBtn = document.getElementById("promptCancel");
+    function cleanup(result){
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      input.removeEventListener("keydown", onKey);
+      dlg.removeEventListener("cancel", onCancel);
+      dlg.close();
+      resolve(result);
+    }
+    function onOk(){ cleanup(input.value.trim() || null); }
+    function onCancel(){ cleanup(null); }
+    function onKey(e){ if(e.key === "Enter"){ e.preventDefault(); onOk(); } }
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    input.addEventListener("keydown", onKey);
+    dlg.addEventListener("cancel", onCancel);
+    dlg.showModal();
+    setTimeout(() => { input.focus(); input.select(); }, 30);
+  });
+}
+
+/* ======================= DANE STARTOWE ======================= */
+const SEED_UTM = {
+  name: "🇨🇦 Lista przed wyjazdem — UTM",
+  categories: [
+    { name: "🛏️ Pokój (Roy Ivor Hall)", items: [
+      "Pościel — poszwa na kołdrę + poszewka na poduszkę (Twin XL, 96×203 cm)",
+      "Prześcieradło (Twin XL)","Koc / dodatkowy pled","Poduszka (na miejscu)",
+      "Ochraniacz na materac","Wieszaki do szafy","Organizer pod łóżko / na szafę",
+      "Lampka na biurko","Listwa zasilająca / przedłużacz (typ A/B, 120V)",
+      "Zamek / kłódka do szafki lub walizki","Dekoracje — plakaty, lampki LED, zdjęcia z domu",
+      "Mata / dywanik pod biurko","Kosz na śmieci + worki","Wentylator (może)",
+      "Worek na pranie / kosz na brudne ubrania"
+    ]},
+    { name: "🚿 Łazienka", items: [
+      "Szczoteczka do zębów + zapasowe główki","Pasta do zębów","Mydło / żel pod prysznic",
+      "Szampon i odżywka","Dezodorant","Ręcznik kąpielowy (2 szt.)","Ręcznik na siłownię + basen",
+      "Kosmetyczka","Krem do twarzy / balsam do ciała","Maszynka do golenia + żel","Wkłady do maszynki",
+      "Nożyczki do paznokci / cążki","Suszarka do włosów (120V)","Szczotka/grzebień",
+      "Apteczka podróżna (plastry, ibuprofen, węgiel, coś na przeziębienie)",
+      "Recepty / leki na stałe — zapas + opis po angielsku od lekarza","SPF"
+    ]},
+    { name: "💻 Nauka / studia", items: [
+      "Laptop","Ładowarka do laptopa","Powerbank","Adapter wtyczki PL→CA (typ A/B)",
+      "Listwa zasilająca z portami USB","Słuchawki nauszne + douszne","Plecak na zajęcia","Torba sportowa",
+      "Zeszyty / notatniki","Długopisy, ołówki, mazaki, korektor","Kalkulator",
+      "Segregatory / teczki na dokumenty","Karteczki samoprzylepne","Dysk zewnętrzny / pendrive",
+      "Podkładka pod mysz + mysz","Kłódka do szafki na siłowni/w bibliotece"
+    ]},
+    { name: "👕 Ubrania", items: [
+      "Kurtka zimowa (letnia + mocna zimowa)","Czapka, szalik, rękawiczki","Bluzy / swetry",
+      "Koszulki / t-shirty","Spodnie / jeansy","Bielizna termiczna","Piżama",
+      "Bielizna — zapas na ok. 2 tygodnie","Skarpetki — zapas","Strój formalny",
+      "Strój na siłownię / sportowy","Kostium kąpielowy","Parasol","Kurtka przeciwdeszczowa",
+      "Torba/plecak wodoodporny na książki w deszcz","Buty zimowe wodoodporne","Buty na co dzień",
+      "Klapki na basen / pod prysznic","Klapki/Crocsy","Korki","Buty do biegania",
+      "Buty na hale sportowe","Buty eleganckie","Pasek do spodni"
+    ]},
+    { name: "🍳 Kuchnia (wspólne miejsce, własne naczynia obowiązkowe)", items: [
+      "Talerz, miska, kubek — swoje, podpisane","Sztućce (widelec, nóż, łyżka, łyżeczka)",
+      "Butelka na wodę wielokrotnego użytku","Kubek termiczny na kawę/herbatę",
+      "Otwieracz do puszek / butelek","Mały garnek / patelnia","Pojemniki plastikowe na jedzenie",
+      "Ścierka kuchenna, gąbka, płyn do naczyń","Przyprawy podstawowe (na miejscu)",
+      "Czajnik elektryczny (jeśli brak w kuchni)"
+    ]},
+    { name: "📄 Dokumenty i finanse", items: [
+      "Paszport (ważność min. 6 mies. po powrocie)","Study Permit / list akceptacyjny z UTM",
+      "Potwierdzenie zakwaterowania","Dowód szczepień / karta zdrowia","Ubezpieczenie zdrowotne/podróżne",
+      "Kopie dokumentów (skan + wydruk osobno)","Zdjęcia paszportowe (zapas)",
+      "Karta płatnicza międzynarodowa (Revolut/Wise + bank)","Trochę gotówki w CAD",
+      "Prawo jazdy (jeśli masz)","Numer kontaktu awaryjnego zapisany na papierze","Legitymacja / ISIC"
+    ]},
+    { name: "🎒 Własne akcesoria", items: [
+      "Zegarek","Okulary przeciwsłoneczne","Portfel + card holder","Mała torba na wycieczki / plecak miejski",
+      "Etui na laptop","Menedżer haseł skonfigurowany","Ulubiona książka / coś osobistego z domu",
+      "Zdjęcia rodziny / bliskich","Flaga Polski","Gra karciana / talia kart"
+    ]},
+    { name: "🧳 Praktyczne dodatki podróżne", items: [
+      "Poduszka podróżna do samolotu","Bagaż podręczny w limicie linii lotniczej",
+      "Etykiety na walizki z danymi kontaktowymi","Waga bagażowa","Pokrowiec na walizkę",
+      "Melatonina / coś na jet lag"
+    ]}
+  ]
+};
+
+const SEED_OPOLE = {
+  name: "Opole Pakowanie",
+  categories: [
+    { name: "👕 Ubrania", items: [
+      "Majtki","Skarpetki","Buty do biegania/grania/góry","Buty do chodzenia","Kąpielówki",
+      "Krótkie spodenki","Długie spodnie / Dresy","Koszulki","Bluzy","Czapka z daszkiem",
+      "Koszulka dla Hani","Rzeczy sportowe","Pasek"
+    ]},
+    { name: "🕶️ Akcesoria", items: [
+      "Okulary na słońce","Krzyżyk","Zegarek Garmin + MB"
+    ]},
+    { name: "🔑 Inne", items: [
+      "Legitymacja","Tabletki","Krem do ust","Portfel","Książka dla Hani","Macbook",
+      "Ładowarkę do Macbooka","Ładowarkę do telefonu i słuchawek","Słuchawki","AirTag"
+    ]},
+    { name: "🧴 Kosmetyczka", items: [
+      "Golarka","Krem po goleniu","Szczoteczka elektryczna","Ładowarka do szczoteczki",
+      "Perfumy 2szt","Szampon","Płyn do mycia ciała","Żel do włosów","Woda w spreju",
+      "Sprej do włosów","SPF","Krem do twarzy","Cążki","Nitka do zębów","Dezodorant",
+      "Nakładki na zęby","Obcinaczki do paznokci","Skin Cleaner"
+    ]}
+  ],
+  // pozycje, które w Twoim eksporcie były już odznaczone (przekreślone)
+  checkedTexts: ["Szampon","Woda w spreju","Dezodorant"]
+};
+
+function buildSeedOpole(){
+  const nb = { id: uid("nb"), name: SEED_OPOLE.name, isUtm:false, categories: [] };
+  SEED_OPOLE.categories.forEach(c => {
+    const cat = { id: uid("cat"), name: c.name, items: [] };
+    c.items.forEach(text => {
+      const it = { id: uid("it"), text, note:"", priority:false, qty:"" };
+      cat.items.push(it);
+      if(SEED_OPOLE.checkedTexts.includes(text)) state.checked[it.id] = true;
+    });
+    nb.categories.push(cat);
+  });
+  return nb;
+}
+const STORAGE_KEY = "notebooks-app-state-v2";
+const OLD_KEY_V1 = "notebooks-app-state-v1";
+const OLD_KEY_V0 = "utm-packing-checklist-state";
+
+function uid(prefix){ return `${prefix}-${Date.now()}-${Math.floor(Math.random()*100000)}`; }
+
+function buildSeedNotebook(){
+  const nb = { id: uid("nb"), name: SEED_UTM.name, isUtm:true, categories: [] };
+  SEED_UTM.categories.forEach(c => {
+    const cat = { id: uid("cat"), name: c.name, items: [] };
+    c.items.forEach(text => cat.items.push({ id: uid("it"), text, note:"", priority:false, qty:"" }));
+    nb.categories.push(cat);
+  });
+  return nb;
+}
+
+let state = { notebooks: [], checked: {}, activeId: null };
+let filter = "all"; // all | active | done
+let searchQuery = "";
+let hideDone = false;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = { notebooks: parsed.notebooks || [], checked: parsed.checked || {}, activeId: null };
+      state.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
+      if(!state.notebooks.some(nb => nb.name === SEED_OPOLE.name)){
+        state.notebooks.push(buildSeedOpole());
+        saveState();
+      }
+      return;
+    }
+  }catch(e){ console.error("Błąd wczytywania", e); toast("Nie udało się wczytać zapisanych danych.", "error"); }
+
+  // migracja z v1
+  try{
+    const rawV1 = localStorage.getItem(OLD_KEY_V1);
+    if(rawV1){
+      const old = JSON.parse(rawV1);
+      if(old.notebooks){
+        old.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
+        state = { notebooks: old.notebooks, checked: old.checked || {}, activeId:null };
+        return;
+      }
+    }
+  }catch(e){ /* ignoruj */ }
+
+  // pierwsze uruchomienie / migracja z bardzo starej wersji
+  let seed = buildSeedNotebook();
+  try{
+    const rawV0 = localStorage.getItem(OLD_KEY_V0);
+    if(rawV0){
+      const old = JSON.parse(rawV0);
+      if(old.checked){
+        seed.categories.forEach((cat, ci) => cat.items.forEach((it, ii) => {
+          const oldId = `c${ci}-i${ii}`;
+          if(old.checked[oldId]) state.checked[it.id] = true;
+        }));
+      }
+    }
+  }catch(e){ /* ignoruj */ }
+  const opole = buildSeedOpole();
+  state.notebooks = [seed, opole];
+}
+
+function saveState(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){
+    console.error("Zapis nieudany", e);
+    toast("⚠️ Nie udało się zapisać zmian (pamięć przeglądarki pełna lub zablokowana). Zrób eksport JSON, żeby nie stracić danych.", "error");
+  }
+}
+
+function cloneNotebook(nb, newName){
+  const clone = { id: uid("nb"), name: newName, isUtm:false, categories: [] };
+  nb.categories.forEach(cat => {
+    const newCat = { id: uid("cat"), name: cat.name, items: [] };
+    cat.items.forEach(it => {
+      newCat.items.push({ id: uid("it"), text: it.text, note: it.note || "", priority: false, qty: it.qty || "" });
+    });
+    clone.categories.push(newCat);
+  });
+  return clone;
+}
+
+function getNotebook(id){ return state.notebooks.find(n => n.id === id); }
+
+function nbStats(nb){
+  let total = 0, done = 0;
+  nb.categories.forEach(cat => cat.items.forEach(it => { total++; if(state.checked[it.id]) done++; }));
+  return { total, done, pct: total ? Math.round(done/total*100) : 0 };
+}
+
+/* ======================= EKSPORT / IMPORT ======================= */
+document.getElementById("exportBtn").onclick = () => {
+  const data = JSON.stringify(state, null, 2);
+  const blob = new Blob([data], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `notatnik-eksport-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  toast("Wyeksportowano plik JSON — możesz go wysłać komuś lub zaimportować na innym urządzeniu.", "success");
+};
+
+document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
+document.getElementById("importFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if(!parsed || !Array.isArray(parsed.notebooks)) throw new Error("zły format");
+    const replace = await customConfirm(
+      "Zaimportowany plik zastąpi wszystkie obecne notatniki. Kliknij „Zamień”, albo Anuluj, by przerwać.",
+      { title:"Importować dane?", okLabel:"Zamień" }
+    );
+    if(!replace) return;
+    parsed.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
+    state = { notebooks: parsed.notebooks, checked: parsed.checked || {}, activeId: null };
+    saveState();
+    renderMenu();
+    toast("Zaimportowano dane.", "success");
+  }catch(err){
+    console.error(err);
+    toast("Nie udało się wczytać pliku — sprawdź, czy to poprawny eksport z tego notatnika.", "error");
+  }
+});
+
+/* ======================= RENDER: MENU ======================= */
+function renderMenu(){
+  const grid = document.getElementById("menuGrid");
+  grid.innerHTML = "";
+  state.notebooks.forEach(nb => {
+    const s = nbStats(nb);
+    const card = document.createElement("div");
+    card.className = "nb-card";
+    card.tabIndex = 0;
+    card.innerHTML = `
+      <div class="nb-actions">
+        <button class="action-btn dup-btn" title="Duplikuj notatnik" aria-label="Duplikuj notatnik ${nb.name}">⧉</button>
+        <button class="action-btn edit-btn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika ${nb.name}">✎</button>
+        <button class="action-btn del-btn" title="Usuń notatnik" aria-label="Usuń notatnik ${nb.name}">✕</button>
+      </div>
+      <div class="nb-name">${nb.name}</div>
+      <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%"></div></div>
+    `;
+    card.addEventListener("click", (e) => { if(e.target.closest(".nb-actions")) return; openNotebook(nb.id); });
+    card.addEventListener("keydown", (e) => { if(e.key === "Enter" && !e.target.closest(".nb-actions")) openNotebook(nb.id); });
+
+    card.querySelector(".dup-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const name = await customPrompt("Nazwa dla kopii notatnika:", nb.name + " (kopia)", { title:"Duplikuj notatnik" });
+      if(!name) return;
+      const clone = cloneNotebook(nb, name);
+      state.notebooks.push(clone);
+      saveState(); renderMenu();
+      toast("Utworzono kopię notatnika.", "success");
+    });
+    card.querySelector(".del-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością? Tej operacji nie da się cofnąć.`, { title:"Usunąć notatnik?" });
+      if(!ok) return;
+      state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
+      saveState(); renderMenu();
+      toast("Notatnik usunięty.");
+    });
+    card.querySelector(".edit-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
+      if(v){ nb.name = v; saveState(); renderMenu(); }
+    });
+    grid.appendChild(card);
+  });
+
+  const newCard = document.createElement("div");
+  newCard.className = "nb-card new-card";
+  newCard.tabIndex = 0;
+  newCard.setAttribute("role","button");
+  newCard.setAttribute("aria-label","Utwórz nowy notatnik");
+  newCard.innerHTML = `<div class="plus">+</div><div>Nowy notatnik</div>`;
+  async function createNb(){
+    const name = await customPrompt("Nazwa nowego notatnika:", "Nowa lista", { title:"Nowy notatnik" });
+    if(!name) return;
+    const nb = { id: uid("nb"), name, isUtm:false, categories: [] };
+    state.notebooks.push(nb);
+    saveState();
+    openNotebook(nb.id);
+  }
+  newCard.addEventListener("click", createNb);
+  newCard.addEventListener("keydown", e => { if(e.key === "Enter") createNb(); });
+  grid.appendChild(newCard);
+}
+
+/* ======================= RENDER: NOTATNIK ======================= */
+function openNotebook(id){
+  state.activeId = id;
+  filter = "all"; searchQuery = ""; hideDone = false;
+  document.getElementById("searchInput").value = "";
+  document.getElementById("hideDoneToggle").classList.remove("active");
+  document.getElementById("hideDoneToggle").setAttribute("aria-pressed","false");
+  document.querySelectorAll(".filter-chip[data-filter]").forEach(b => { b.classList.toggle("active", b.dataset.filter === "all"); b.setAttribute("aria-pressed", b.dataset.filter === "all"); });
+  document.getElementById("menuScreen").classList.add("hidden");
+  document.getElementById("notebookScreen").classList.remove("hidden");
+  ["expandAll","collapseAll","resetAll","deleteCheckedBtn","deleteNbBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
+  renderNotebook();
+}
+
+function backToMenu(){
+  state.activeId = null;
+  document.getElementById("notebookScreen").classList.add("hidden");
+  document.getElementById("menuScreen").classList.remove("hidden");
+  ["expandAll","collapseAll","resetAll","deleteCheckedBtn","deleteNbBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
+  renderMenu();
+}
+
+let dragCatId = null;   // id kategorii przeciąganej
+let dragItem = null;    // {catId, itemId} przeciąganego elementu
+
+function renderNotebook(){
+  const nb = getNotebook(state.activeId);
+  if(!nb){ backToMenu(); return; }
+
+  document.getElementById("nbTitleText").textContent = nb.name;
+  document.getElementById("utmNote").classList.toggle("hidden", !nb.isUtm);
+
+  const root = document.getElementById("categories");
+  root.innerHTML = "";
+  const q = searchQuery.trim().toLowerCase();
+
+  nb.categories.forEach(cat => {
+    const catEl = document.createElement("div");
+    catEl.className = "cat";
+    catEl.draggable = false;
+    catEl.dataset.catId = cat.id;
+
+    const header = document.createElement("div");
+    header.className = "cat-header";
+    const catIdx = nb.categories.indexOf(cat);
+    header.innerHTML = `
+      <span class="drag-handle" draggable="true" title="Przeciągnij, by zmienić kolejność" aria-label="Przeciągnij, by zmienić kolejność kategorii">⠿</span>
+      <div class="cat-title"><span></span><span class="cat-count"></span></div>
+      <div class="cat-header-actions">
+        <button class="action-btn move-up-btn" title="Przesuń kategorię w górę" aria-label="Przesuń kategorię ${cat.name} w górę" ${catIdx===0 ? "disabled" : ""}>▲</button>
+        <button class="action-btn move-down-btn" title="Przesuń kategorię w dół" aria-label="Przesuń kategorię ${cat.name} w dół" ${catIdx===nb.categories.length-1 ? "disabled" : ""}>▼</button>
+        <button class="action-btn check-all-btn" title="Zaznacz wszystkie w tej kategorii" aria-label="Zaznacz wszystkie pozycje w kategorii ${cat.name}">☑</button>
+        <button class="action-btn uncheck-all-btn" title="Odznacz wszystkie w tej kategorii" aria-label="Odznacz wszystkie pozycje w kategorii ${cat.name}">☐</button>
+        <button class="action-btn dup-cat-btn" title="Duplikuj kategorię" aria-label="Duplikuj kategorię ${cat.name}">⧉</button>
+        <button class="action-btn edit-btn" title="Zmień nazwę kategorii" aria-label="Zmień nazwę kategorii ${cat.name}">✎</button>
+        <button class="action-btn del-btn" title="Usuń kategorię" aria-label="Usuń kategorię ${cat.name}">✕</button>
+      </div>
+      <div class="chev">▼</div>`;
+    header.querySelector(".cat-title span").textContent = cat.name;
+    header.addEventListener("click", (e) => {
+      if(e.target.closest(".cat-header-actions") || e.target.closest(".drag-handle")) return;
+      catEl.classList.toggle("collapsed");
+    });
+
+    header.querySelector(".move-up-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = nb.categories.indexOf(cat);
+      if(idx <= 0) return;
+      [nb.categories[idx-1], nb.categories[idx]] = [nb.categories[idx], nb.categories[idx-1]];
+      saveState(); renderNotebook();
+    });
+    header.querySelector(".move-down-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = nb.categories.indexOf(cat);
+      if(idx === -1 || idx >= nb.categories.length-1) return;
+      [nb.categories[idx+1], nb.categories[idx]] = [nb.categories[idx], nb.categories[idx+1]];
+      saveState(); renderNotebook();
+    });
+    header.querySelector(".check-all-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      cat.items.forEach(it => state.checked[it.id] = true);
+      saveState(); renderNotebook();
+      toast(`Zaznaczono wszystko w „${cat.name}”.`);
+    });
+    header.querySelector(".uncheck-all-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      cat.items.forEach(it => delete state.checked[it.id]);
+      saveState(); renderNotebook();
+    });
+
+    // drag & drop kategorii (reorder)
+    const catHandle = header.querySelector(".drag-handle");
+    catHandle.addEventListener("dragstart", (e) => {
+      dragCatId = cat.id;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", cat.id);
+    });
+    catEl.addEventListener("dragover", (e) => {
+      if(dragCatId === null) return;
+      e.preventDefault();
+      catEl.classList.add("drag-over");
+    });
+    catEl.addEventListener("dragleave", () => catEl.classList.remove("drag-over"));
+    catEl.addEventListener("drop", (e) => {
+      e.preventDefault();
+      catEl.classList.remove("drag-over");
+      if(dragCatId === null || dragCatId === cat.id) return;
+      const fromIdx = nb.categories.findIndex(c => c.id === dragCatId);
+      const toIdx = nb.categories.findIndex(c => c.id === cat.id);
+      if(fromIdx === -1 || toIdx === -1) return;
+      const [moved] = nb.categories.splice(fromIdx, 1);
+      nb.categories.splice(toIdx, 0, moved);
+      dragCatId = null;
+      saveState();
+      renderNotebook();
+    });
+
+    header.querySelector(".del-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const ok = await customConfirm(`Usunąć kategorię „${cat.name}” wraz z pozycjami?`, { title:"Usunąć kategorię?" });
+      if(!ok) return;
+      cat.items.forEach(it => delete state.checked[it.id]);
+      nb.categories = nb.categories.filter(c => c.id !== cat.id);
+      saveState(); renderNotebook();
+    });
+    header.querySelector(".dup-cat-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const newCat = { id: uid("cat"), name: cat.name + " (kopia)", items: [] };
+      cat.items.forEach(it => newCat.items.push({ id: uid("it"), text: it.text, note: it.note || "", priority:false, qty: it.qty || "" }));
+      const idx = nb.categories.indexOf(cat);
+      nb.categories.splice(idx+1, 0, newCat);
+      saveState(); renderNotebook();
+      toast("Skopiowano kategorię.", "success");
+    });
+    header.querySelector(".edit-btn").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const v = await customPrompt("Nowa nazwa kategorii:", cat.name, { title:"Zmień nazwę kategorii" });
+      if(v){ cat.name = v; saveState(); renderNotebook(); }
+    });
+
+    const itemsEl = document.createElement("div");
+    itemsEl.className = "items";
+
+    function visibleItems(){
+      return cat.items.filter(it => {
+        if(q && !(it.text.toLowerCase().includes(q) || (it.note||"").toLowerCase().includes(q))) return false;
+        const isChecked = !!state.checked[it.id];
+        if(hideDone && isChecked) return false;
+        if(filter === "active" && isChecked) return false;
+        if(filter === "done" && !isChecked) return false;
+        return true;
+      }).sort((a,b) => (b.priority?1:0) - (a.priority?1:0));
+    }
+
+    function refreshCount(){
+      const done = cat.items.filter(it => state.checked[it.id]).length;
+      header.querySelector(".cat-count").textContent = `(${done}/${cat.items.length})`;
+    }
+
+    // strefa upuszczania elementu z innej kategorii, gdy lista jest pusta po filtrze
+    itemsEl.addEventListener("dragover", (e) => {
+      if(!dragItem) return;
+      e.preventDefault();
+    });
+    itemsEl.addEventListener("drop", (e) => {
+      if(!dragItem) return;
+      e.preventDefault();
+      moveDraggedItemTo(cat, null);
+    });
+
+    function moveDraggedItemTo(targetCat, beforeItemId){
+      if(!dragItem) return;
+      const srcCat = nb.categories.find(c => c.id === dragItem.catId);
+      if(!srcCat) return;
+      const idx = srcCat.items.findIndex(i => i.id === dragItem.itemId);
+      if(idx === -1) return;
+      const [moved] = srcCat.items.splice(idx, 1);
+      if(targetCat.id === srcCat.id && beforeItemId){
+        const toIdx = targetCat.items.findIndex(i => i.id === beforeItemId);
+        targetCat.items.splice(toIdx === -1 ? targetCat.items.length : toIdx, 0, moved);
+      } else if(beforeItemId){
+        const toIdx = targetCat.items.findIndex(i => i.id === beforeItemId);
+        targetCat.items.splice(toIdx === -1 ? targetCat.items.length : toIdx, 0, moved);
+      } else {
+        targetCat.items.push(moved);
+      }
+      dragItem = null;
+      saveState();
+      renderNotebook();
+    }
+
+    function renderItems(){
+      itemsEl.querySelectorAll(".item").forEach(el => el.remove());
+      const items = visibleItems();
+      items.forEach(it => {
+        const row = document.createElement("div");
+        row.className = "item" + (state.checked[it.id] ? " checked" : "");
+        row.dataset.itemId = it.id;
+        const visIdx = items.indexOf(it);
+        row.innerHTML = `
+          <span class="item-drag-handle" draggable="true" title="Przeciągnij: zmień kolejność lub przenieś do innej kategorii" aria-label="Przeciągnij pozycję">⠿</span>
+          <span class="check-wrap"><input type="checkbox" id="${it.id}" ${state.checked[it.id] ? "checked" : ""} aria-label="${it.text}"></span>
+          <div class="item-body">
+            <label for="${it.id}"></label>
+            <div class="item-note"></div>
+          </div>
+          <div class="item-actions">
+            <button class="action-btn star-btn${it.priority ? " active" : ""}" title="${it.priority ? "Usuń priorytet" : "Oznacz jako priorytet"}" aria-label="Priorytet: ${it.text}">${it.priority ? "⭐" : "☆"}</button>
+            <button class="action-btn move-up-btn" title="Przesuń w górę" aria-label="Przesuń pozycję ${it.text} w górę" ${visIdx===0 ? "disabled" : ""}>▲</button>
+            <button class="action-btn move-down-btn" title="Przesuń w dół" aria-label="Przesuń pozycję ${it.text} w dół" ${visIdx===items.length-1 ? "disabled" : ""}>▼</button>
+            <button class="action-btn edit-btn" title="Edytuj" aria-label="Edytuj pozycję ${it.text}">✎</button>
+            <button class="action-btn del-btn" title="Usuń" aria-label="Usuń pozycję ${it.text}">✕</button>
+          </div>`;
+        row.querySelector("label").textContent = it.text + (it.qty ? `  ×${it.qty}` : "");
+        if(it.priority) row.classList.add("priority");
+        row.querySelector(".star-btn").addEventListener("click", () => {
+          it.priority = !it.priority;
+          saveState();
+          renderItems();
+        });
+        const noteEl = row.querySelector(".item-note");
+        if(it.note){ noteEl.textContent = "📝 " + it.note; } else { noteEl.remove(); }
+
+        row.querySelector("input").addEventListener("change", (e) => {
+          state.checked[it.id] = e.target.checked;
+          row.classList.toggle("checked", e.target.checked);
+          if(e.target.checked){ e.target.classList.remove("pop"); void e.target.offsetWidth; e.target.classList.add("pop"); }
+          saveState();
+          updateProgress();
+          refreshCount();
+          if(filter !== "all") renderItems();
+        });
+
+        row.querySelector(".move-up-btn").addEventListener("click", () => {
+          const idx = cat.items.findIndex(x => x.id === it.id);
+          if(idx <= 0) return;
+          [cat.items[idx-1], cat.items[idx]] = [cat.items[idx], cat.items[idx-1]];
+          saveState(); renderItems();
+        });
+        row.querySelector(".move-down-btn").addEventListener("click", () => {
+          const idx = cat.items.findIndex(x => x.id === it.id);
+          if(idx === -1 || idx >= cat.items.length-1) return;
+          [cat.items[idx+1], cat.items[idx]] = [cat.items[idx], cat.items[idx+1]];
+          saveState(); renderItems();
+        });
+
+        row.querySelector(".del-btn").addEventListener("click", async () => {
+          const ok = await customConfirm(`Usunąć pozycję „${it.text}”?`, { title:"Usunąć pozycję?" });
+          if(!ok) return;
+          row.classList.add("removing");
+          row.addEventListener("animationend", () => {
+            cat.items = cat.items.filter(x => x.id !== it.id);
+            delete state.checked[it.id];
+            saveState();
+            renderItems(); updateProgress(); refreshCount();
+          }, { once:true });
+        });
+
+        row.querySelector(".edit-btn").addEventListener("click", () => {
+          const body = row.querySelector(".item-body");
+          const actions = row.querySelector(".item-actions");
+          const otherCats = nb.categories.filter(c => c.id !== cat.id);
+          const moveOptions = otherCats.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+          body.innerHTML = `
+            <input type="text" class="edit-inline" id="editText-${it.id}" style="margin-bottom:6px; display:block; width:100%;">
+            <div style="display:flex; gap:6px; margin-bottom:6px;">
+              <input type="text" class="edit-inline" id="editNote-${it.id}" placeholder="Notatka..." style="flex:2; border-color:var(--border);">
+              <input type="text" class="edit-inline" id="editQty-${it.id}" placeholder="Ilość, np. 2" style="flex:1; border-color:var(--border);">
+            </div>
+            ${otherCats.length ? `
+            <select class="edit-inline" id="editMove-${it.id}" style="display:block; width:100%; border-color:var(--border);">
+              <option value="">↪ Przenieś do innej kategorii...</option>
+              ${moveOptions}
+            </select>` : ""}
+          `;
+          const textInput = body.querySelector(`#editText-${it.id}`);
+          const noteInput = body.querySelector(`#editNote-${it.id}`);
+          const qtyInput = body.querySelector(`#editQty-${it.id}`);
+          const moveSelect = body.querySelector(`#editMove-${it.id}`);
+          textInput.value = it.text;
+          noteInput.value = it.note || "";
+          qtyInput.value = it.qty || "";
+          actions.style.display = "none";
+          textInput.focus(); textInput.select();
+
+          function commitTextNote(){
+            const v = textInput.value.trim();
+            if(v) it.text = v;
+            it.note = noteInput.value.trim();
+            it.qty = qtyInput.value.trim();
+            saveState();
+          }
+
+          if(moveSelect){
+            moveSelect.addEventListener("change", () => {
+              const targetId = moveSelect.value;
+              if(!targetId) return;
+              commitTextNote();
+              const targetCat = nb.categories.find(c => c.id === targetId);
+              cat.items = cat.items.filter(x => x.id !== it.id);
+              targetCat.items.push(it);
+              saveState();
+              renderNotebook();
+              toast(`Przeniesiono „${it.text}” do „${targetCat.name}”.`);
+            });
+          }
+
+          function commit(){
+            commitTextNote();
+            renderItems();
+          }
+          [textInput, noteInput, qtyInput].forEach(inp => {
+            inp.addEventListener("keydown", e => { if(e.key==="Enter") commit(); if(e.key==="Escape") renderItems(); });
+          });
+          textInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
+          noteInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
+          qtyInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
+        });
+
+        // drag & drop pozycji
+        const handle = row.querySelector(".item-drag-handle");
+        handle.addEventListener("dragstart", (e) => {
+          dragItem = { catId: cat.id, itemId: it.id };
+          row.classList.add("drag-ghost");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", it.id);
+        });
+        handle.addEventListener("dragend", () => { row.classList.remove("drag-ghost"); dragItem = null; });
+        row.addEventListener("dragover", (e) => { if(dragItem) e.preventDefault(); });
+        row.addEventListener("drop", (e) => {
+          if(!dragItem) return;
+          e.preventDefault();
+          e.stopPropagation();
+          moveDraggedItemTo(cat, it.id);
+        });
+
+        itemsEl.insertBefore(row, itemsEl.querySelector(".add-row"));
+      });
+    }
+
+    const addRow = document.createElement("div");
+    addRow.className = "add-row";
+    const input = document.createElement("input");
+    input.type = "text"; input.placeholder = "Dodaj pozycję do tej sekcji...";
+    input.setAttribute("aria-label", `Dodaj pozycję do kategorii ${cat.name}`);
+    const addBtn = document.createElement("button");
+    addBtn.textContent = "+ Dodaj";
+    function addItem(){
+      const text = input.value.trim();
+      if(!text) return;
+      cat.items.push({ id: uid("it"), text, note:"", priority:false, qty:"" });
+      input.value = "";
+      saveState();
+      renderItems(); updateProgress(); refreshCount();
+    }
+    addBtn.onclick = addItem;
+    input.addEventListener("keydown", e => { if(e.key === "Enter") addItem(); });
+    addRow.appendChild(input); addRow.appendChild(addBtn);
+    itemsEl.appendChild(addRow);
+
+    renderItems();
+    refreshCount();
+
+    catEl.appendChild(header);
+    catEl.appendChild(itemsEl);
+    root.appendChild(catEl);
+  });
+
+  updateProgress();
+}
+
+function fireConfetti(){
+  const colors = ["#5ea1ff","#3ddc84","#ff6b6b","#ffd166","#c792ea"];
+  for(let i=0;i<24;i++){
+    const el = document.createElement("div");
+    el.className = "confetti";
+    el.style.left = Math.random()*100 + "vw";
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration = (1.4 + Math.random()*1.2) + "s";
+    el.style.animationDelay = (Math.random()*.3) + "s";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+  }
+}
+
+let lastCelebratedNb = null;
+function updateProgress(){
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const s = nbStats(nb);
+  document.getElementById("progressFill").style.width = s.pct + "%";
+  const label = document.getElementById("progressLabel");
+  label.textContent = `${s.done} / ${s.total} (${s.pct}%)`;
+  const isDone = s.total > 0 && s.done === s.total;
+  label.classList.toggle("done", isDone);
+  if(isDone && lastCelebratedNb !== nb.id){ fireConfetti(); lastCelebratedNb = nb.id; }
+  if(!isDone && lastCelebratedNb === nb.id){ lastCelebratedNb = null; }
+}
+
+/* ======================= WYSZUKIWARKA / FILTRY ======================= */
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  searchQuery = e.target.value;
+  renderNotebook();
+});
+document.querySelectorAll(".filter-chip[data-filter]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    filter = btn.dataset.filter;
+    document.querySelectorAll(".filter-chip[data-filter]").forEach(b => { b.classList.toggle("active", b === btn); b.setAttribute("aria-pressed", b === btn); });
+    renderNotebook();
+  });
+});
+document.getElementById("hideDoneToggle").addEventListener("click", () => {
+  hideDone = !hideDone;
+  const btn = document.getElementById("hideDoneToggle");
+  btn.classList.toggle("active", hideDone);
+  btn.setAttribute("aria-pressed", hideDone);
+  renderNotebook();
+});
+
+/* ======================= PRZYCISKI GLOBALNE ======================= */
+document.getElementById("backBtn").onclick = backToMenu;
+
+document.getElementById("nbEditBtn").onclick = async () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
+  if(v){ nb.name = v; saveState(); renderNotebook(); }
+};
+
+document.getElementById("addCatBtn").onclick = () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const input = document.getElementById("newCatInput");
+  const name = input.value.trim();
+  if(!name) return;
+  nb.categories.push({ id: uid("cat"), name, items: [] });
+  input.value = "";
+  saveState(); renderNotebook();
+};
+document.getElementById("newCatInput").addEventListener("keydown", e => { if(e.key === "Enter") document.getElementById("addCatBtn").click(); });
+
+document.getElementById("expandAll").onclick = () => document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
+document.getElementById("collapseAll").onclick = () => document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
+
+document.getElementById("resetAll").onclick = async () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const ok = await customConfirm("Wyczyścić wszystkie zaznaczenia w tym notatniku? (pozycje zostaną)", { title:"Wyczyścić zaznaczenia?", okLabel:"Wyczyść" });
+  if(!ok) return;
+  nb.categories.forEach(cat => cat.items.forEach(it => delete state.checked[it.id]));
+  saveState(); renderNotebook();
+};
+document.getElementById("deleteCheckedBtn").onclick = async () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  let count = 0;
+  nb.categories.forEach(cat => cat.items.forEach(it => { if(state.checked[it.id]) count++; }));
+  if(count === 0){ toast("Nie masz żadnych zaznaczonych pozycji."); return; }
+  const ok = await customConfirm(`Usunąć ${count} zaznaczonych pozycji z tego notatnika? Tej operacji nie da się cofnąć.`, { title:"Usunąć zaznaczone?" });
+  if(!ok) return;
+  nb.categories.forEach(cat => {
+    cat.items = cat.items.filter(it => !state.checked[it.id]);
+  });
+  Object.keys(state.checked).forEach(id => {
+    const stillExists = nb.categories.some(cat => cat.items.some(it => it.id === id));
+    if(!stillExists) delete state.checked[id];
+  });
+  saveState(); renderNotebook();
+  toast(`Usunięto ${count} pozycji.`, "success");
+};
+document.getElementById("deleteNbBtn").onclick = async () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const ok = await customConfirm(`Usunąć cały notatnik „${nb.name}”? Tej operacji nie da się cofnąć.`, { title:"Usunąć notatnik?" });
+  if(!ok) return;
+  state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
+  saveState();
+  backToMenu();
+  toast("Notatnik usunięty.");
+};
+
+/* cień pod sticky headerem przy scrollu */
+window.addEventListener("scroll", () => {
+  const y = window.scrollY > 4;
+  document.getElementById("menuTopBar").classList.toggle("scrolled", y);
+  document.getElementById("nbTopBar").classList.toggle("scrolled", y);
+});
+
+/* ======================= PWA / OFFLINE ======================= */
+if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => { /* brak sw.js obok pliku — cicho ignoruj */ });
+  });
+}
+
+/* ======================= START ======================= */
+loadState();
+renderMenu();
+</script>
+
+</body>
+</html>
