@@ -2,7 +2,7 @@
   "name": "Mój notatnik",
   "short_name": "Notatnik",
   "description": "Notatnik z listami kontrolnymi — kategorie, checklisty, wyszukiwanie i offline.",
-  "start_url": "./notatnik.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0f1115",
