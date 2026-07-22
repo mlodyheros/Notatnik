@@ -72,7 +72,7 @@
   .nb-card .nb-name{font-size:15.5px; font-weight:600; margin-bottom:10px; padding-right:44px; word-break:break-word;}
   .nb-card .nb-meta{font-size:12px; color:var(--muted); margin-bottom:10px;}
   .nb-card .progress-bar{height:6px;}
-  .nb-actions{position:absolute; top:10px; right:8px; display:none; gap:0; flex-wrap:wrap; justify-content:flex-end; max-width:130px;}
+  .nb-actions{position:absolute; top:10px; right:8px; display:none; gap:0; flex-wrap:wrap; justify-content:flex-end; max-width:160px;}
   .nb-actions .action-btn{min-width:30px; min-height:30px; padding:5px; font-size:13px;}
   .color-label{position:relative; cursor:pointer;}
   .color-input{
@@ -85,6 +85,16 @@
   }
   .nb-card.new-card:hover{color:var(--accent);}
   .nb-card.new-card .plus{font-size:26px; line-height:1;}
+  .nb-card.archived{opacity:.65;}
+  .archive-section{margin-top:24px;}
+  .archive-toggle{
+    background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer;
+    padding:6px 0; display:flex; align-items:center; gap:6px;
+  }
+  .archive-toggle:hover{color:var(--text);}
+  .archive-toggle::after{content:"▾"; font-size:11px; transition:transform .2s ease;}
+  .archive-toggle.open::after{transform:rotate(180deg);}
+  #archiveGrid{margin-top:10px;}
 
   .nb-card:nth-child(1){animation-delay:.02s;} .nb-card:nth-child(2){animation-delay:.06s;}
   .nb-card:nth-child(3){animation-delay:.10s;} .nb-card:nth-child(4){animation-delay:.14s;}
@@ -131,6 +141,7 @@
     padding:7px 13px; font-size:12.5px; cursor:pointer; white-space:nowrap;
   }
   .filter-chip.active{border-color:var(--accent); color:var(--accent);}
+  select.filter-chip{-webkit-appearance:none; appearance:none; padding-right:24px;}
   .chip-count{opacity:.65; font-size:11px;}
 
   .cat{
@@ -265,6 +276,16 @@
   }
   .dlg-input:focus{outline:none; border-color:var(--accent);}
   .dlg-actions{display:flex; justify-content:flex-end; gap:8px;}
+  .template-list{display:flex; flex-direction:column; gap:8px; margin-bottom:14px;}
+  .template-option{
+    display:flex; align-items:center; gap:12px; text-align:left; background:#0f1218;
+    border:1px solid var(--border); border-radius:10px; padding:12px 14px; cursor:pointer;
+    color:var(--text); font-size:13.5px; transition:border-color .15s ease, background .15s ease;
+  }
+  .template-option:hover{border-color:var(--accent); background:#141926;}
+  .template-option .t-icon{font-size:20px; flex-shrink:0;}
+  .template-option .t-name{font-weight:600; margin-bottom:2px;}
+  .template-option .t-desc{color:var(--muted); font-size:12px;}
   .dlg-actions button{min-height:38px;}
   .dlg-actions .primary{background:var(--accent); border-color:var(--accent); color:#08131f; font-weight:600;}
   .dlg-actions .danger{background:var(--danger); border-color:var(--danger); color:#2a0a0a; font-weight:600;}
@@ -315,6 +336,11 @@
     </div>
   </div>
   <div class="menu-grid" id="menuGrid"></div>
+
+  <div id="archiveSection" class="archive-section hidden">
+    <button id="archiveToggle" class="archive-toggle">📦 Archiwum</button>
+    <div class="menu-grid hidden" id="archiveGrid"></div>
+  </div>
 </div>
 
 <!-- ====== WIDOK POJEDYNCZEGO NOTATNIKA ====== -->
@@ -346,6 +372,15 @@
     <button class="filter-chip" id="hideDoneToggle" aria-pressed="false">🙈 Ukryj ukończone</button>
   </div>
 
+  <div class="toolbar">
+    <button id="copyTextBtn" title="Kopiuj listę jako czysty tekst"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Kopiuj jako tekst</button>
+    <select id="sortSelect" class="filter-chip" aria-label="Sortuj pozycje">
+      <option value="">⇅ Sortuj: ręcznie</option>
+      <option value="az">Sortuj: A → Z</option>
+      <option value="unchecked-first">Sortuj: nieukończone na górze</option>
+    </select>
+  </div>
+
   <div class="add-cat-row">
     <input type="text" id="newCatInput" placeholder="Nazwa nowej kategorii, np. 🏋️ Siłownia..." aria-label="Nazwa nowej kategorii">
     <button id="addCatBtn">+ Kategoria</button>
@@ -359,6 +394,7 @@
   <button id="collapseAll" class="hidden">Zwiń</button>
   <button class="reset hidden" id="resetAll">Wyczyść zaznaczenia</button>
   <button class="reset hidden" id="deleteCheckedBtn">Usuń zaznaczone</button>
+  <button class="hidden" id="archiveNbBtn">📦 Archiwizuj</button>
   <button class="reset hidden" id="deleteNbBtn">Usuń ten notatnik</button>
 </div>
 
@@ -381,6 +417,17 @@
     <div class="dlg-actions">
       <button id="promptCancel">Anuluj</button>
       <button class="primary" id="promptOk">OK</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="templateDialog">
+  <div class="dlg-body">
+    <div class="dlg-title">Zacznij od szablonu</div>
+    <div class="dlg-msg">Możesz zacząć od pustej kartki albo gotowego zestawu kategorii, który dopełnisz sam.</div>
+    <div class="template-list" id="templateList"></div>
+    <div class="dlg-actions">
+      <button id="templateCancel">Anuluj</button>
     </div>
   </div>
 </dialog>
@@ -456,6 +503,45 @@ function customConfirm(message, { title="Potwierdź", okLabel="Usuń" } = {}){
     function onOk(){ cleanup(true); }
     function onCancel(){ cleanup(false); }
     okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    dlg.addEventListener("cancel", onCancel);
+    dlg.showModal();
+  });
+}
+
+const NB_TEMPLATES = [
+  { id:"empty", icon:"📄", name:"Pusta kartka", desc:"Zaczynasz od zera, sam dodajesz kategorie.", categories:[] },
+  { id:"shopping", icon:"🛒", name:"Lista zakupów", desc:"Do kupienia, świeże, chemia/kosmetyki.", categories:[
+    { name:"🛒 Do kupienia", items:[] }, { name:"🥦 Świeże", items:[] }, { name:"🧴 Chemia / kosmetyki", items:[] }
+  ]},
+  { id:"packing", icon:"🧳", name:"Pakowanie na wyjazd", desc:"Ubrania, kosmetyczka, dokumenty, elektronika.", categories:[
+    { name:"👕 Ubrania", items:[] }, { name:"🧴 Kosmetyczka", items:[] }, { name:"📄 Dokumenty", items:[] }, { name:"🔌 Elektronika", items:[] }
+  ]},
+  { id:"tasks", icon:"✅", name:"Lista zadań", desc:"Pilne, do zrobienia, zrobione.", categories:[
+    { name:"🔥 Pilne", items:[] }, { name:"📌 Do zrobienia", items:[] }, { name:"✅ Zrobione / w toku", items:[] }
+  ]}
+];
+
+function chooseTemplate(){
+  return new Promise(resolve => {
+    const dlg = document.getElementById("templateDialog");
+    const list = document.getElementById("templateList");
+    list.innerHTML = "";
+    NB_TEMPLATES.forEach(t => {
+      const btn = document.createElement("button");
+      btn.className = "template-option";
+      btn.innerHTML = `<span class="t-icon">${t.icon}</span><span><span class="t-name">${t.name}</span><br><span class="t-desc">${t.desc}</span></span>`;
+      btn.addEventListener("click", () => { cleanup(t.id); });
+      list.appendChild(btn);
+    });
+    const cancelBtn = document.getElementById("templateCancel");
+    function cleanup(result){
+      cancelBtn.removeEventListener("click", onCancel);
+      dlg.removeEventListener("cancel", onCancel);
+      dlg.close();
+      resolve(result);
+    }
+    function onCancel(){ cleanup(null); }
     cancelBtn.addEventListener("click", onCancel);
     dlg.addEventListener("cancel", onCancel);
     dlg.showModal();
@@ -615,65 +701,81 @@ document.getElementById("importFile").addEventListener("change", async (e) => {
 });
 
 /* ======================= RENDER: MENU ======================= */
+function buildNbCard(nb){
+  const s = nbStats(nb);
+  const card = document.createElement("div");
+  card.className = "nb-card" + (nb.archived ? " archived" : "");
+  card.tabIndex = 0;
+  if(nb.color) card.style.borderLeft = `4px solid ${nb.color}`;
+  const editedLabel = nb.updatedAt ? `· edytowano ${relativeTime(nb.updatedAt)}` : "";
+  card.innerHTML = `
+    <div class="nb-actions">
+      <label class="action-btn color-label" title="Kolor notatnika" aria-label="Zmień kolor notatnika ${nb.name}">🎨<input type="color" class="color-input" value="${nb.color || '#5ea1ff'}"></label>
+      <button class="action-btn dup-btn" title="Duplikuj notatnik" aria-label="Duplikuj notatnik ${nb.name}">⧉</button>
+      <button class="action-btn archive-btn" title="${nb.archived ? "Przywróć z archiwum" : "Archiwizuj"}" aria-label="${nb.archived ? "Przywróć z archiwum" : "Archiwizuj"} ${nb.name}">${nb.archived ? "📤" : "📦"}</button>
+      <button class="action-btn edit-btn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika ${nb.name}">✎</button>
+      <button class="action-btn del-btn" title="Usuń notatnik" aria-label="Usuń notatnik ${nb.name}">✕</button>
+    </div>
+    <div class="nb-name">${nb.name}</div>
+    <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione ${editedLabel}</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>
+  `;
+  card.addEventListener("click", (e) => { if(e.target.closest(".nb-actions")) return; openNotebook(nb.id); });
+  card.addEventListener("keydown", (e) => { if(e.key === "Enter" && !e.target.closest(".nb-actions")) openNotebook(nb.id); });
+
+  card.querySelector(".color-input").addEventListener("input", (e) => {
+    nb.color = e.target.value;
+    touchNotebook(nb);
+    saveState();
+    renderMenu();
+  });
+  card.querySelector(".color-label").addEventListener("click", (e) => e.stopPropagation());
+  card.querySelector(".dup-btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const name = await customPrompt("Nazwa dla kopii notatnika:", nb.name + " (kopia)", { title:"Duplikuj notatnik" });
+    if(!name) return;
+    const clone = cloneNotebook(nb, name);
+    state.notebooks.push(clone);
+    saveState(); renderMenu();
+    toast("Utworzono kopię notatnika.", "success");
+  });
+  card.querySelector(".archive-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    nb.archived = !nb.archived;
+    touchNotebook(nb);
+    saveState(); renderMenu();
+    toast(nb.archived ? `Zarchiwizowano „${nb.name}”.` : `Przywrócono „${nb.name}”.`, "", () => {
+      nb.archived = !nb.archived;
+      saveState(); renderMenu();
+    });
+  });
+  card.querySelector(".del-btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością?`, { title:"Usunąć notatnik?" });
+    if(!ok) return;
+    const idxAtDelete = state.notebooks.indexOf(nb);
+    state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
+    saveState(); renderMenu();
+    toast(`Usunięto „${nb.name}”.`, "", () => {
+      state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, nb);
+      saveState(); renderMenu();
+    });
+  });
+  card.querySelector(".edit-btn").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
+    if(v){ nb.name = v; touchNotebook(nb); saveState(); renderMenu(); }
+  });
+  return card;
+}
+
 function renderMenu(){
   const grid = document.getElementById("menuGrid");
   grid.innerHTML = "";
-  state.notebooks.forEach(nb => {
-    const s = nbStats(nb);
-    const card = document.createElement("div");
-    card.className = "nb-card";
-    card.tabIndex = 0;
-    if(nb.color) card.style.borderLeft = `4px solid ${nb.color}`;
-    const editedLabel = nb.updatedAt ? `· edytowano ${relativeTime(nb.updatedAt)}` : "";
-    card.innerHTML = `
-      <div class="nb-actions">
-        <label class="action-btn color-label" title="Kolor notatnika" aria-label="Zmień kolor notatnika ${nb.name}">🎨<input type="color" class="color-input" value="${nb.color || '#5ea1ff'}"></label>
-        <button class="action-btn dup-btn" title="Duplikuj notatnik" aria-label="Duplikuj notatnik ${nb.name}">⧉</button>
-        <button class="action-btn edit-btn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika ${nb.name}">✎</button>
-        <button class="action-btn del-btn" title="Usuń notatnik" aria-label="Usuń notatnik ${nb.name}">✕</button>
-      </div>
-      <div class="nb-name">${nb.name}</div>
-      <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione ${editedLabel}</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>
-    `;
-    card.addEventListener("click", (e) => { if(e.target.closest(".nb-actions")) return; openNotebook(nb.id); });
-    card.addEventListener("keydown", (e) => { if(e.key === "Enter" && !e.target.closest(".nb-actions")) openNotebook(nb.id); });
+  const active = state.notebooks.filter(nb => !nb.archived);
+  const archived = state.notebooks.filter(nb => nb.archived);
 
-    card.querySelector(".color-input").addEventListener("input", (e) => {
-      nb.color = e.target.value;
-      touchNotebook(nb);
-      saveState();
-      renderMenu();
-    });
-    card.querySelector(".color-label").addEventListener("click", (e) => e.stopPropagation());
-    card.querySelector(".dup-btn").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const name = await customPrompt("Nazwa dla kopii notatnika:", nb.name + " (kopia)", { title:"Duplikuj notatnik" });
-      if(!name) return;
-      const clone = cloneNotebook(nb, name);
-      state.notebooks.push(clone);
-      saveState(); renderMenu();
-      toast("Utworzono kopię notatnika.", "success");
-    });
-    card.querySelector(".del-btn").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością?`, { title:"Usunąć notatnik?" });
-      if(!ok) return;
-      const idxAtDelete = state.notebooks.indexOf(nb);
-      state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
-      saveState(); renderMenu();
-      toast(`Usunięto „${nb.name}”.`, "", () => {
-        state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, nb);
-        saveState(); renderMenu();
-      });
-    });
-    card.querySelector(".edit-btn").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
-      if(v){ nb.name = v; touchNotebook(nb); saveState(); renderMenu(); }
-    });
-    grid.appendChild(card);
-  });
+  active.forEach(nb => grid.appendChild(buildNbCard(nb)));
 
   const newCard = document.createElement("div");
   newCard.className = "nb-card new-card";
@@ -684,7 +786,12 @@ function renderMenu(){
   async function createNb(){
     const name = await customPrompt("Nazwa nowego notatnika:", "Nowa lista", { title:"Nowy notatnik" });
     if(!name) return;
-    const nb = { id: uid("nb"), name, isUtm:false, categories: [] };
+    const templateId = await chooseTemplate();
+    const template = NB_TEMPLATES.find(t => t.id === templateId) || NB_TEMPLATES[0];
+    const nb = { id: uid("nb"), name, isUtm:false, categories: [], updatedAt: Date.now() };
+    template.categories.forEach(c => {
+      nb.categories.push({ id: uid("cat"), name: c.name, items: [], collapsed:false });
+    });
     state.notebooks.push(nb);
     saveState();
     openNotebook(nb.id);
@@ -692,6 +799,18 @@ function renderMenu(){
   newCard.addEventListener("click", createNb);
   newCard.addEventListener("keydown", e => { if(e.key === "Enter") createNb(); });
   grid.appendChild(newCard);
+
+  const archiveSection = document.getElementById("archiveSection");
+  const archiveGrid = document.getElementById("archiveGrid");
+  const archiveToggle = document.getElementById("archiveToggle");
+  archiveGrid.innerHTML = "";
+  if(archived.length){
+    archiveSection.classList.remove("hidden");
+    archiveToggle.textContent = `📦 Archiwum (${archived.length})`;
+    archived.forEach(nb => archiveGrid.appendChild(buildNbCard(nb)));
+  } else {
+    archiveSection.classList.add("hidden");
+  }
 }
 
 /* ======================= RENDER: NOTATNIK ======================= */
@@ -704,7 +823,7 @@ function openNotebook(id){
   document.querySelectorAll(".filter-chip[data-filter]").forEach(b => { b.classList.toggle("active", b.dataset.filter === "all"); b.setAttribute("aria-pressed", b.dataset.filter === "all"); });
   document.getElementById("menuScreen").classList.add("hidden");
   document.getElementById("notebookScreen").classList.remove("hidden");
-  ["expandAll","collapseAll","resetAll","deleteCheckedBtn","deleteNbBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
+  ["expandAll","collapseAll","resetAll","deleteCheckedBtn","archiveNbBtn","deleteNbBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
   renderNotebook();
 }
 
@@ -712,7 +831,7 @@ function backToMenu(){
   state.activeId = null;
   document.getElementById("notebookScreen").classList.add("hidden");
   document.getElementById("menuScreen").classList.remove("hidden");
-  ["expandAll","collapseAll","resetAll","deleteCheckedBtn","deleteNbBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
+  ["expandAll","collapseAll","resetAll","deleteCheckedBtn","archiveNbBtn","deleteNbBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
   renderMenu();
 }
 
@@ -1124,6 +1243,79 @@ document.getElementById("nbEditBtn").onclick = async () => {
   if(v){ nb.name = v; touchNotebook(nb); saveState(); renderNotebook(); }
 };
 
+/* ======================= KOPIUJ JAKO TEKST ======================= */
+function buildPlainText(nb){
+  let lines = [nb.name, ""];
+  nb.categories.forEach(cat => {
+    const done = cat.items.filter(it => state.checked[it.id]).length;
+    lines.push(`${cat.name} (${done}/${cat.items.length})`);
+    cat.items.forEach(it => {
+      const box = state.checked[it.id] ? "☑" : "☐";
+      const star = it.priority ? " ⭐" : "";
+      const qty = it.qty ? ` ×${it.qty}` : "";
+      lines.push(`${box} ${it.text}${qty}${star}`);
+      if(it.note) lines.push(`   📝 ${it.note}`);
+    });
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+document.getElementById("copyTextBtn").addEventListener("click", async () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const text = buildPlainText(nb);
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    toast("Skopiowano listę jako tekst.", "success");
+  }catch(e){
+    console.error(e);
+    toast("Nie udało się skopiować — spróbuj zaznaczyć i skopiować ręcznie.", "error");
+  }
+});
+
+/* ======================= SORTOWANIE ======================= */
+document.getElementById("sortSelect").addEventListener("change", (e) => {
+  const mode = e.target.value;
+  e.target.value = ""; // to jest akcja jednorazowa, nie tryb stały
+  if(!mode) return;
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  const snapshot = nb.categories.map(cat => ({ id: cat.id, items: cat.items.slice() }));
+  nb.categories.forEach(cat => {
+    if(mode === "az"){
+      cat.items.sort((a,b) => a.text.localeCompare(b.text, "pl"));
+    } else if(mode === "unchecked-first"){
+      cat.items.sort((a,b) => {
+        const aDone = state.checked[a.id] ? 1 : 0;
+        const bDone = state.checked[b.id] ? 1 : 0;
+        return aDone - bDone;
+      });
+    }
+  });
+  touchNotebook(nb);
+  saveState(); renderNotebook();
+  toast("Posortowano.", "", () => {
+    snapshot.forEach(s => {
+      const cat = nb.categories.find(c => c.id === s.id);
+      if(cat) cat.items = s.items;
+    });
+    touchNotebook(nb);
+    saveState(); renderNotebook();
+  });
+});
+
 document.getElementById("addCatBtn").onclick = () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
@@ -1185,6 +1377,18 @@ document.getElementById("deleteCheckedBtn").onclick = async () => {
     saveState(); renderNotebook();
   });
 };
+document.getElementById("archiveNbBtn").onclick = () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb) return;
+  nb.archived = true;
+  touchNotebook(nb);
+  saveState();
+  backToMenu();
+  toast(`Zarchiwizowano „${nb.name}”.`, "", () => {
+    nb.archived = false;
+    saveState(); renderMenu();
+  });
+};
 document.getElementById("deleteNbBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
@@ -1236,6 +1440,13 @@ document.addEventListener("keydown", (e) => {
     }
     searchInput.blur();
   }
+});
+
+document.getElementById("archiveToggle").addEventListener("click", () => {
+  const grid = document.getElementById("archiveGrid");
+  const btn = document.getElementById("archiveToggle");
+  grid.classList.toggle("hidden");
+  btn.classList.toggle("open", !grid.classList.contains("hidden"));
 });
 
 /* ======================= START ======================= */
