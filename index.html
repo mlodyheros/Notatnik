@@ -369,7 +369,7 @@
     <button class="filter-chip" data-filter="active" aria-pressed="false">Do zrobienia <span class="chip-count" id="countActive"></span></button>
     <button class="filter-chip" data-filter="done" aria-pressed="false">Zrobione <span class="chip-count" id="countDone"></span></button>
     <button class="filter-chip" data-filter="priority" aria-pressed="false">⭐ Priorytet</button>
-    <button class="filter-chip" id="hideDoneToggle" aria-pressed="false">🙈 Ukryj ukończone</button>
+    <button class="filter-chip" id="hideDoneToggle" aria-pressed="false"> Ukryj ukończone</button>
   </div>
 
   <div class="toolbar">
@@ -394,7 +394,7 @@
   <button id="collapseAll" class="hidden">Zwiń</button>
   <button class="reset hidden" id="resetAll">Wyczyść zaznaczenia</button>
   <button class="reset hidden" id="deleteCheckedBtn">Usuń zaznaczone</button>
-  <button class="hidden" id="archiveNbBtn">📦 Archiwizuj</button>
+  <button class="hidden" id="archiveNbBtn"> Archiwizuj</button>
   <button class="reset hidden" id="deleteNbBtn">Usuń ten notatnik</button>
 </div>
 
@@ -424,7 +424,7 @@
 <dialog id="templateDialog">
   <div class="dlg-body">
     <div class="dlg-title">Zacznij od szablonu</div>
-    <div class="dlg-msg">Możesz zacząć od pustej kartki albo gotowego zestawu kategorii, który dopełnisz sam.</div>
+    <div class="dlg-msg">Możesz zacząć od pustej kartki albo gotowego szablonu.</div>
     <div class="template-list" id="templateList"></div>
     <div class="dlg-actions">
       <button id="templateCancel">Anuluj</button>
@@ -510,11 +510,11 @@ function customConfirm(message, { title="Potwierdź", okLabel="Usuń" } = {}){
 }
 
 const NB_TEMPLATES = [
-  { id:"empty", icon:"📄", name:"Pusta kartka", desc:"Zaczynasz od zera, sam dodajesz kategorie.", categories:[] },
+  { id:"empty", icon:"📄", name:"Pusta kartka", desc:"Sam dodajesz kategorie.", categories:[] },
   { id:"shopping", icon:"🛒", name:"Lista zakupów", desc:"Do kupienia, świeże, chemia/kosmetyki.", categories:[
     { name:"🛒 Do kupienia", items:[] }, { name:"🥦 Świeże", items:[] }, { name:"🧴 Chemia / kosmetyki", items:[] }
   ]},
-  { id:"packing", icon:"🧳", name:"Pakowanie na wyjazd", desc:"Ubrania, kosmetyczka, dokumenty, elektronika.", categories:[
+  { id:"packing", icon:"🧳", name:"Pakowanie", desc:"Ubrania, kosmetyczka, dokumenty, elektronika.", categories:[
     { name:"👕 Ubrania", items:[] }, { name:"🧴 Kosmetyczka", items:[] }, { name:"📄 Dokumenty", items:[] }, { name:"🔌 Elektronika", items:[] }
   ]},
   { id:"tasks", icon:"✅", name:"Lista zadań", desc:"Pilne, do zrobienia, zrobione.", categories:[
