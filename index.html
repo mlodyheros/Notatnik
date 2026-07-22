@@ -72,7 +72,12 @@
   .nb-card .nb-name{font-size:15.5px; font-weight:600; margin-bottom:10px; padding-right:44px; word-break:break-word;}
   .nb-card .nb-meta{font-size:12px; color:var(--muted); margin-bottom:10px;}
   .nb-card .progress-bar{height:6px;}
-  .nb-actions{position:absolute; top:10px; right:8px; display:none; gap:2px;}
+  .nb-actions{position:absolute; top:10px; right:8px; display:none; gap:0; flex-wrap:wrap; justify-content:flex-end; max-width:130px;}
+  .nb-actions .action-btn{min-width:30px; min-height:30px; padding:5px; font-size:13px;}
+  .color-label{position:relative; cursor:pointer;}
+  .color-input{
+    position:absolute; inset:0; width:100%; height:100%; opacity:0; border:none; padding:0; margin:0; cursor:pointer;
+  }
   .nb-card:hover .nb-actions, .nb-card:focus-within .nb-actions{display:flex;}
   .nb-card.new-card{
     display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
@@ -126,6 +131,7 @@
     padding:7px 13px; font-size:12.5px; cursor:pointer; white-space:nowrap;
   }
   .filter-chip.active{border-color:var(--accent); color:var(--accent);}
+  .chip-count{opacity:.65; font-size:11px;}
 
   .cat{
     background:var(--card); border:1px solid var(--border); border-radius:12px;
@@ -270,8 +276,12 @@
   }
   .toast{
     background:#1c212c; border:1px solid var(--border); color:var(--text); font-size:13px;
-    padding:10px 16px; border-radius:10px; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
-    animation:toastIn .2s ease both;
+    padding:10px 12px 10px 16px; border-radius:10px; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);
+    animation:toastIn .2s ease both; display:flex; align-items:center; gap:12px; pointer-events:auto;
+  }
+  .toast-undo{
+    background:var(--accent); color:#08131f; border:none; border-radius:7px; font-weight:600;
+    padding:5px 11px; font-size:12px; min-height:auto; cursor:pointer; flex-shrink:0;
   }
   .toast.error{border-color:var(--danger); color:#ffb4b4;}
   .toast.success{border-color:var(--done); color:#b8f5cf;}
@@ -329,9 +339,10 @@
 
   <div class="toolbar">
     <input type="search" id="searchInput" placeholder="Szukaj pozycji..." aria-label="Szukaj pozycji w notatniku">
-    <button class="filter-chip active" data-filter="all" aria-pressed="true">Wszystko</button>
-    <button class="filter-chip" data-filter="active" aria-pressed="false">Do zrobienia</button>
-    <button class="filter-chip" data-filter="done" aria-pressed="false">Zrobione</button>
+    <button class="filter-chip active" data-filter="all" aria-pressed="true">Wszystko <span class="chip-count" id="countAll"></span></button>
+    <button class="filter-chip" data-filter="active" aria-pressed="false">Do zrobienia <span class="chip-count" id="countActive"></span></button>
+    <button class="filter-chip" data-filter="done" aria-pressed="false">Zrobione <span class="chip-count" id="countDone"></span></button>
+    <button class="filter-chip" data-filter="priority" aria-pressed="false">⭐ Priorytet</button>
     <button class="filter-chip" id="hideDoneToggle" aria-pressed="false">🙈 Ukryj ukończone</button>
   </div>
 
@@ -401,16 +412,29 @@ document.getElementById("themeToggleBtn").onclick = toggleTheme;
 document.getElementById("themeToggleBtn2").onclick = toggleTheme;
 
 /* ======================= TOASTY ======================= */
-function toast(msg, type=""){
+function toast(msg, type="", undoFn=null){
   const wrap = document.getElementById("toastWrap");
   const el = document.createElement("div");
   el.className = "toast" + (type ? " " + type : "");
-  el.textContent = msg;
-  wrap.appendChild(el);
-  setTimeout(() => {
+  const span = document.createElement("span");
+  span.textContent = msg;
+  el.appendChild(span);
+  let dismissed = false;
+  function dismiss(){
+    if(dismissed) return;
+    dismissed = true;
     el.classList.add("out");
     setTimeout(() => el.remove(), 260);
-  }, 2600);
+  }
+  if(undoFn){
+    const btn = document.createElement("button");
+    btn.className = "toast-undo";
+    btn.textContent = "Cofnij";
+    btn.onclick = () => { undoFn(); dismiss(); };
+    el.appendChild(btn);
+  }
+  wrap.appendChild(el);
+  setTimeout(dismiss, undoFn ? 5500 : 2600);
 }
 
 /* ======================= DIALOGI (zamiast confirm/prompt) ======================= */
@@ -528,6 +552,24 @@ function cloneNotebook(nb, newName){
 
 function getNotebook(id){ return state.notebooks.find(n => n.id === id); }
 
+function touchNotebook(nb){ if(nb) nb.updatedAt = Date.now(); }
+
+function relativeTime(ts){
+  if(!ts) return "";
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if(min < 1) return "przed chwilą";
+  if(min < 60) return `${min} min temu`;
+  const h = Math.floor(min / 60);
+  if(h < 24) return `${h} godz. temu`;
+  const d = Math.floor(h / 24);
+  if(d === 1) return "wczoraj";
+  if(d < 7) return `${d} dni temu`;
+  const w = Math.floor(d / 7);
+  if(w < 5) return `${w} tyg. temu`;
+  return new Date(ts).toLocaleDateString("pl-PL");
+}
+
 function nbStats(nb){
   let total = 0, done = 0;
   nb.categories.forEach(cat => cat.items.forEach(it => { total++; if(state.checked[it.id]) done++; }));
@@ -581,19 +623,29 @@ function renderMenu(){
     const card = document.createElement("div");
     card.className = "nb-card";
     card.tabIndex = 0;
+    if(nb.color) card.style.borderLeft = `4px solid ${nb.color}`;
+    const editedLabel = nb.updatedAt ? `· edytowano ${relativeTime(nb.updatedAt)}` : "";
     card.innerHTML = `
       <div class="nb-actions">
+        <label class="action-btn color-label" title="Kolor notatnika" aria-label="Zmień kolor notatnika ${nb.name}">🎨<input type="color" class="color-input" value="${nb.color || '#5ea1ff'}"></label>
         <button class="action-btn dup-btn" title="Duplikuj notatnik" aria-label="Duplikuj notatnik ${nb.name}">⧉</button>
         <button class="action-btn edit-btn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika ${nb.name}">✎</button>
         <button class="action-btn del-btn" title="Usuń notatnik" aria-label="Usuń notatnik ${nb.name}">✕</button>
       </div>
       <div class="nb-name">${nb.name}</div>
-      <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%"></div></div>
+      <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione ${editedLabel}</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>
     `;
     card.addEventListener("click", (e) => { if(e.target.closest(".nb-actions")) return; openNotebook(nb.id); });
     card.addEventListener("keydown", (e) => { if(e.key === "Enter" && !e.target.closest(".nb-actions")) openNotebook(nb.id); });
 
+    card.querySelector(".color-input").addEventListener("input", (e) => {
+      nb.color = e.target.value;
+      touchNotebook(nb);
+      saveState();
+      renderMenu();
+    });
+    card.querySelector(".color-label").addEventListener("click", (e) => e.stopPropagation());
     card.querySelector(".dup-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
       const name = await customPrompt("Nazwa dla kopii notatnika:", nb.name + " (kopia)", { title:"Duplikuj notatnik" });
@@ -605,16 +657,20 @@ function renderMenu(){
     });
     card.querySelector(".del-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
-      const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością? Tej operacji nie da się cofnąć.`, { title:"Usunąć notatnik?" });
+      const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością?`, { title:"Usunąć notatnik?" });
       if(!ok) return;
+      const idxAtDelete = state.notebooks.indexOf(nb);
       state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
       saveState(); renderMenu();
-      toast("Notatnik usunięty.");
+      toast(`Usunięto „${nb.name}”.`, "", () => {
+        state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, nb);
+        saveState(); renderMenu();
+      });
     });
     card.querySelector(".edit-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
       const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
-      if(v){ nb.name = v; saveState(); renderMenu(); }
+      if(v){ nb.name = v; touchNotebook(nb); saveState(); renderMenu(); }
     });
     grid.appendChild(card);
   });
@@ -698,12 +754,33 @@ function makeSortable(containerEl, rowSelector, handleSelector, onReorder){
   });
 }
 
+function updateFilterCounts(nb){
+  const q = searchQuery.trim().toLowerCase();
+  let total = 0, done = 0;
+  nb.categories.forEach(cat => cat.items.forEach(it => {
+    if(q && !(it.text.toLowerCase().includes(q) || (it.note||"").toLowerCase().includes(q))) return;
+    total++;
+    if(state.checked[it.id]) done++;
+  }));
+  const elAll = document.getElementById("countAll");
+  const elActive = document.getElementById("countActive");
+  const elDone = document.getElementById("countDone");
+  if(elAll) elAll.textContent = `(${total})`;
+  if(elActive) elActive.textContent = `(${total - done})`;
+  if(elDone) elDone.textContent = `(${done})`;
+}
+
 function renderNotebook(){
   const nb = getNotebook(state.activeId);
   if(!nb){ backToMenu(); return; }
 
   document.getElementById("nbTitleText").textContent = nb.name;
+  document.getElementById("notebookScreen").style.setProperty("--accent", nb.color || "");
+  const pf = document.getElementById("progressFill");
+  if(nb.color){ pf.style.background = nb.color; pf.style.animation = "none"; }
+  else { pf.style.background = ""; pf.style.animation = ""; }
   document.getElementById("utmNote").classList.toggle("hidden", !nb.isUtm);
+  updateFilterCounts(nb);
 
   const root = document.getElementById("categories");
   root.innerHTML = "";
@@ -739,12 +816,14 @@ function renderNotebook(){
     header.querySelector(".check-all-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       cat.items.forEach(it => state.checked[it.id] = true);
+      touchNotebook(nb);
       saveState(); renderNotebook();
       toast(`Zaznaczono wszystko w „${cat.name}”.`);
     });
     header.querySelector(".uncheck-all-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       cat.items.forEach(it => delete state.checked[it.id]);
+      touchNotebook(nb);
       saveState(); renderNotebook();
     });
 
@@ -754,9 +833,18 @@ function renderNotebook(){
       e.stopPropagation();
       const ok = await customConfirm(`Usunąć kategorię „${cat.name}” wraz z pozycjami?`, { title:"Usunąć kategorię?" });
       if(!ok) return;
-      cat.items.forEach(it => delete state.checked[it.id]);
+      const catIdxAtDelete = nb.categories.indexOf(cat);
+      const savedChecked = {};
+      cat.items.forEach(it => { if(state.checked[it.id]) savedChecked[it.id] = true; delete state.checked[it.id]; });
       nb.categories = nb.categories.filter(c => c.id !== cat.id);
+      touchNotebook(nb);
       saveState(); renderNotebook();
+      toast(`Usunięto kategorię „${cat.name}”.`, "", () => {
+        nb.categories.splice(Math.min(catIdxAtDelete, nb.categories.length), 0, cat);
+        Object.keys(savedChecked).forEach(id => state.checked[id] = true);
+        touchNotebook(nb);
+        saveState(); renderNotebook();
+      });
     });
     header.querySelector(".dup-cat-btn").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -764,13 +852,14 @@ function renderNotebook(){
       cat.items.forEach(it => newCat.items.push({ id: uid("it"), text: it.text, note: it.note || "", priority:false, qty: it.qty || "" }));
       const idx = nb.categories.indexOf(cat);
       nb.categories.splice(idx+1, 0, newCat);
+      touchNotebook(nb);
       saveState(); renderNotebook();
       toast("Skopiowano kategorię.", "success");
     });
     header.querySelector(".edit-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
       const v = await customPrompt("Nowa nazwa kategorii:", cat.name, { title:"Zmień nazwę kategorii" });
-      if(v){ cat.name = v; saveState(); renderNotebook(); }
+      if(v){ cat.name = v; touchNotebook(nb); saveState(); renderNotebook(); }
     });
 
     const itemsEl = document.createElement("div");
@@ -783,6 +872,7 @@ function renderNotebook(){
         if(hideDone && isChecked) return false;
         if(filter === "active" && isChecked) return false;
         if(filter === "done" && !isChecked) return false;
+        if(filter === "priority" && !it.priority) return false;
         return true;
       }).sort((a,b) => (b.priority?1:0) - (a.priority?1:0));
     }
@@ -816,6 +906,7 @@ function renderNotebook(){
         if(it.priority) row.classList.add("priority");
         row.querySelector(".star-btn").addEventListener("click", () => {
           it.priority = !it.priority;
+          touchNotebook(nb);
           saveState();
           renderItems();
         });
@@ -826,21 +917,28 @@ function renderNotebook(){
           state.checked[it.id] = e.target.checked;
           row.classList.toggle("checked", e.target.checked);
           if(e.target.checked){ e.target.classList.remove("pop"); void e.target.offsetWidth; e.target.classList.add("pop"); }
+          touchNotebook(nb);
           saveState();
           updateProgress();
           refreshCount();
           if(filter !== "all") renderItems();
         });
 
-        row.querySelector(".del-btn").addEventListener("click", async () => {
-          const ok = await customConfirm(`Usunąć pozycję „${it.text}”?`, { title:"Usunąć pozycję?" });
-          if(!ok) return;
+        row.querySelector(".del-btn").addEventListener("click", () => {
+          const idx = cat.items.findIndex(x => x.id === it.id);
+          const wasChecked = !!state.checked[it.id];
           row.classList.add("removing");
           row.addEventListener("animationend", () => {
             cat.items = cat.items.filter(x => x.id !== it.id);
             delete state.checked[it.id];
             saveState();
             renderItems(); updateProgress(); refreshCount();
+            toast(`Usunięto „${it.text}”.`, "", () => {
+              cat.items.splice(Math.min(idx, cat.items.length), 0, it);
+              if(wasChecked) state.checked[it.id] = true;
+              saveState();
+              renderItems(); updateProgress(); refreshCount();
+            });
           }, { once:true });
         });
 
@@ -876,6 +974,7 @@ function renderNotebook(){
             if(v) it.text = v;
             it.note = noteInput.value.trim();
             it.qty = qtyInput.value.trim();
+            touchNotebook(nb);
             saveState();
           }
 
@@ -887,6 +986,7 @@ function renderNotebook(){
               const targetCat = nb.categories.find(c => c.id === targetId);
               cat.items = cat.items.filter(x => x.id !== it.id);
               targetCat.items.push(it);
+              touchNotebook(nb);
               saveState();
               renderNotebook();
               toast(`Przeniesiono „${it.text}” do „${targetCat.name}”.`);
@@ -934,6 +1034,7 @@ function renderNotebook(){
       if(!text) return;
       cat.items.push({ id: uid("it"), text, note:"", priority:false, qty:"" });
       input.value = "";
+      touchNotebook(nb);
       saveState();
       renderItems(); updateProgress(); refreshCount();
     }
@@ -1020,7 +1121,7 @@ document.getElementById("nbEditBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
   const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
-  if(v){ nb.name = v; saveState(); renderNotebook(); }
+  if(v){ nb.name = v; touchNotebook(nb); saveState(); renderNotebook(); }
 };
 
 document.getElementById("addCatBtn").onclick = () => {
@@ -1029,14 +1130,25 @@ document.getElementById("addCatBtn").onclick = () => {
   const input = document.getElementById("newCatInput");
   const name = input.value.trim();
   if(!name) return;
-  nb.categories.push({ id: uid("cat"), name, items: [] });
+  nb.categories.push({ id: uid("cat"), name, items: [], collapsed:false });
   input.value = "";
+  touchNotebook(nb);
   saveState(); renderNotebook();
 };
 document.getElementById("newCatInput").addEventListener("keydown", e => { if(e.key === "Enter") document.getElementById("addCatBtn").click(); });
 
-document.getElementById("expandAll").onclick = () => document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
-document.getElementById("collapseAll").onclick = () => document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
+document.getElementById("expandAll").onclick = () => {
+  const nb = getNotebook(state.activeId);
+  if(nb) nb.categories.forEach(c => c.collapsed = false);
+  document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
+  saveState();
+};
+document.getElementById("collapseAll").onclick = () => {
+  const nb = getNotebook(state.activeId);
+  if(nb) nb.categories.forEach(c => c.collapsed = true);
+  document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
+  saveState();
+};
 
 document.getElementById("resetAll").onclick = async () => {
   const nb = getNotebook(state.activeId);
@@ -1052,27 +1164,40 @@ document.getElementById("deleteCheckedBtn").onclick = async () => {
   let count = 0;
   nb.categories.forEach(cat => cat.items.forEach(it => { if(state.checked[it.id]) count++; }));
   if(count === 0){ toast("Nie masz żadnych zaznaczonych pozycji."); return; }
-  const ok = await customConfirm(`Usunąć ${count} zaznaczonych pozycji z tego notatnika? Tej operacji nie da się cofnąć.`, { title:"Usunąć zaznaczone?" });
+  const ok = await customConfirm(`Usunąć ${count} zaznaczonych pozycji z tego notatnika?`, { title:"Usunąć zaznaczone?" });
   if(!ok) return;
+  const removed = []; // { catId, index, item }
   nb.categories.forEach(cat => {
+    cat.items.forEach((it, idx) => { if(state.checked[it.id]) removed.push({ catId: cat.id, index: idx, item: it }); });
     cat.items = cat.items.filter(it => !state.checked[it.id]);
   });
-  Object.keys(state.checked).forEach(id => {
-    const stillExists = nb.categories.some(cat => cat.items.some(it => it.id === id));
-    if(!stillExists) delete state.checked[id];
-  });
+  const removedChecked = {};
+  removed.forEach(r => { removedChecked[r.item.id] = true; delete state.checked[r.item.id]; });
+  touchNotebook(nb);
   saveState(); renderNotebook();
-  toast(`Usunięto ${count} pozycji.`, "success");
+  toast(`Usunięto ${count} pozycji.`, "success", () => {
+    removed.forEach(r => {
+      const cat = nb.categories.find(c => c.id === r.catId);
+      if(cat) cat.items.splice(Math.min(r.index, cat.items.length), 0, r.item);
+      if(removedChecked[r.item.id]) state.checked[r.item.id] = true;
+    });
+    touchNotebook(nb);
+    saveState(); renderNotebook();
+  });
 };
 document.getElementById("deleteNbBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
-  const ok = await customConfirm(`Usunąć cały notatnik „${nb.name}”? Tej operacji nie da się cofnąć.`, { title:"Usunąć notatnik?" });
+  const ok = await customConfirm(`Usunąć cały notatnik „${nb.name}”?`, { title:"Usunąć notatnik?" });
   if(!ok) return;
+  const idxAtDelete = state.notebooks.indexOf(nb);
   state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
   saveState();
   backToMenu();
-  toast("Notatnik usunięty.");
+  toast(`Usunięto „${nb.name}”.`, "", () => {
+    state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, nb);
+    saveState(); renderMenu();
+  });
 };
 
 /* cień pod sticky headerem przy scrollu */
@@ -1089,6 +1214,30 @@ if("serviceWorker" in navigator && (location.protocol === "https:" || location.h
   });
 }
 
+/* ======================= SKRÓTY KLAWIATUROWE ======================= */
+document.addEventListener("keydown", (e) => {
+  // Ctrl/Cmd + F -> fokus na wyszukiwarkę (tylko w widoku notatnika, tylko gdy nic innego nie jest w trakcie edycji)
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f" && state.activeId){
+    const openDialog = document.querySelector("dialog[open]");
+    if(openDialog) return;
+    e.preventDefault();
+    const searchInput = document.getElementById("searchInput");
+    searchInput.focus();
+    searchInput.select();
+    return;
+  }
+  // Esc w polu wyszukiwania -> czyści wyszukiwanie i oddaje fokus
+  if(e.key === "Escape" && document.activeElement && document.activeElement.id === "searchInput"){
+    const searchInput = document.getElementById("searchInput");
+    if(searchInput.value){
+      searchInput.value = "";
+      searchQuery = "";
+      renderNotebook();
+    }
+    searchInput.blur();
+  }
+});
+
 /* ======================= START ======================= */
 loadState();
 renderMenu();
@@ -1096,3 +1245,4 @@ renderMenu();
 
 </body>
 </html>
+
