@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0f1115">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Mój notatnik</title>
+<title>Notatnik</title>
 <style>
   :root{
     --bg:#0f1115; --card:#171a21; --border:#262b35; --text:#e6e8ec;
@@ -128,7 +128,7 @@
     background:var(--card); border:1px solid var(--border); border-radius:12px;
     margin-bottom:16px; overflow:hidden; animation:itemIn .25s ease both;
   }
-  .cat.drag-over{border-color:var(--accent); box-shadow:0 0 0 2px rgba(94,161,255,.25) inset;}
+  .cat.dragging{opacity:.6; box-shadow:0 8px 20px -6px rgba(0,0,0,.5);}
   .cat-header{
     display:flex; justify-content:space-between; align-items:center;
     padding:14px 10px 14px 6px; cursor:pointer; user-select:none; gap:6px;
@@ -159,7 +159,7 @@
   }
   .item:first-child{border-top:none;}
   .item.removing{animation:itemOut .2s ease forwards;}
-  .item.drag-ghost{opacity:.35;}
+  .item.dragging{opacity:.5; background:var(--card); box-shadow:0 8px 16px -6px rgba(0,0,0,.5); border-radius:8px;}
   @keyframes itemIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
   @keyframes itemOut{
     from{opacity:1; transform:translateX(0); max-height:60px;}
@@ -290,7 +290,7 @@
   <div class="top-bar" id="menuTopBar">
     <div class="menu-top-row">
       <div>
-        <h1>📒 Mój notatnik</h1>
+        <h1>📒 Notatnik</h1>
         <div class="sub">Wybierz listę albo stwórz nową.</div>
       </div>
       <div class="menu-top-actions">
@@ -384,7 +384,7 @@ function getTheme(){
     const saved = localStorage.getItem(THEME_KEY);
     if(saved) return saved;
   }catch(e){}
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return "dark"; // ciemny jest domyślny zawsze; jasny tylko po ręcznym przełączeniu
 }
 function toggleTheme(){
   const next = document.body.classList.contains("light-theme") ? "dark" : "light";
@@ -655,8 +655,43 @@ function backToMenu(){
   renderMenu();
 }
 
-let dragCatId = null;   // id kategorii przeciąganej
-let dragItem = null;    // {catId, itemId} przeciąganego elementu
+// Uniwersalne przeciąganie (mysz + dotyk) do zmiany kolejności elementów w liście
+function makeSortable(containerEl, rowSelector, handleSelector, onReorder){
+  containerEl.addEventListener("pointerdown", (e) => {
+    const handle = e.target.closest(handleSelector);
+    if(!handle || !containerEl.contains(handle)) return;
+    const row = handle.closest(rowSelector);
+    if(!row || row.parentElement !== containerEl) return;
+    e.preventDefault();
+    row.classList.add("dragging");
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+
+    function onMove(ev){
+      const rows = Array.from(containerEl.children).filter(el => el.matches(rowSelector));
+      const rowIndex = rows.indexOf(row);
+      for(const sib of rows){
+        if(sib === row) continue;
+        const r = sib.getBoundingClientRect();
+        if(ev.clientY > r.top && ev.clientY < r.bottom){
+          const sibIndex = rows.indexOf(sib);
+          if(sibIndex < rowIndex) containerEl.insertBefore(row, sib);
+          else containerEl.insertBefore(row, sib.nextSibling);
+          break;
+        }
+      }
+    }
+    function onUp(ev){
+      try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+      row.classList.remove("dragging");
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      const rows = Array.from(containerEl.children).filter(el => el.matches(rowSelector));
+      onReorder(rows.map(el => el.dataset.catId || el.dataset.itemId));
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  });
+}
 
 function renderNotebook(){
   const nb = getNotebook(state.activeId);
@@ -670,20 +705,17 @@ function renderNotebook(){
   const q = searchQuery.trim().toLowerCase();
 
   nb.categories.forEach(cat => {
+    if(cat.collapsed === undefined) cat.collapsed = true;
     const catEl = document.createElement("div");
-    catEl.className = "cat";
-    catEl.draggable = false;
+    catEl.className = "cat" + (cat.collapsed ? " collapsed" : "");
     catEl.dataset.catId = cat.id;
 
     const header = document.createElement("div");
     header.className = "cat-header";
-    const catIdx = nb.categories.indexOf(cat);
     header.innerHTML = `
-      <span class="drag-handle" draggable="true" title="Przeciągnij, by zmienić kolejność" aria-label="Przeciągnij, by zmienić kolejność kategorii">⠿</span>
+      <span class="drag-handle" title="Przeciągnij, by zmienić kolejność" aria-label="Przeciągnij, by zmienić kolejność kategorii">⠿</span>
       <div class="cat-title"><span></span><span class="cat-count"></span></div>
       <div class="cat-header-actions">
-        <button class="action-btn move-up-btn" title="Przesuń kategorię w górę" aria-label="Przesuń kategorię ${cat.name} w górę" ${catIdx===0 ? "disabled" : ""}>▲</button>
-        <button class="action-btn move-down-btn" title="Przesuń kategorię w dół" aria-label="Przesuń kategorię ${cat.name} w dół" ${catIdx===nb.categories.length-1 ? "disabled" : ""}>▼</button>
         <button class="action-btn check-all-btn" title="Zaznacz wszystkie w tej kategorii" aria-label="Zaznacz wszystkie pozycje w kategorii ${cat.name}">☑</button>
         <button class="action-btn uncheck-all-btn" title="Odznacz wszystkie w tej kategorii" aria-label="Odznacz wszystkie pozycje w kategorii ${cat.name}">☐</button>
         <button class="action-btn dup-cat-btn" title="Duplikuj kategorię" aria-label="Duplikuj kategorię ${cat.name}">⧉</button>
@@ -694,23 +726,11 @@ function renderNotebook(){
     header.querySelector(".cat-title span").textContent = cat.name;
     header.addEventListener("click", (e) => {
       if(e.target.closest(".cat-header-actions") || e.target.closest(".drag-handle")) return;
-      catEl.classList.toggle("collapsed");
+      cat.collapsed = !cat.collapsed;
+      catEl.classList.toggle("collapsed", cat.collapsed);
+      saveState();
     });
 
-    header.querySelector(".move-up-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      const idx = nb.categories.indexOf(cat);
-      if(idx <= 0) return;
-      [nb.categories[idx-1], nb.categories[idx]] = [nb.categories[idx], nb.categories[idx-1]];
-      saveState(); renderNotebook();
-    });
-    header.querySelector(".move-down-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      const idx = nb.categories.indexOf(cat);
-      if(idx === -1 || idx >= nb.categories.length-1) return;
-      [nb.categories[idx+1], nb.categories[idx]] = [nb.categories[idx], nb.categories[idx+1]];
-      saveState(); renderNotebook();
-    });
     header.querySelector(".check-all-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       cat.items.forEach(it => state.checked[it.id] = true);
@@ -723,32 +743,7 @@ function renderNotebook(){
       saveState(); renderNotebook();
     });
 
-    // drag & drop kategorii (reorder)
-    const catHandle = header.querySelector(".drag-handle");
-    catHandle.addEventListener("dragstart", (e) => {
-      dragCatId = cat.id;
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", cat.id);
-    });
-    catEl.addEventListener("dragover", (e) => {
-      if(dragCatId === null) return;
-      e.preventDefault();
-      catEl.classList.add("drag-over");
-    });
-    catEl.addEventListener("dragleave", () => catEl.classList.remove("drag-over"));
-    catEl.addEventListener("drop", (e) => {
-      e.preventDefault();
-      catEl.classList.remove("drag-over");
-      if(dragCatId === null || dragCatId === cat.id) return;
-      const fromIdx = nb.categories.findIndex(c => c.id === dragCatId);
-      const toIdx = nb.categories.findIndex(c => c.id === cat.id);
-      if(fromIdx === -1 || toIdx === -1) return;
-      const [moved] = nb.categories.splice(fromIdx, 1);
-      nb.categories.splice(toIdx, 0, moved);
-      dragCatId = null;
-      saveState();
-      renderNotebook();
-    });
+    // drag & drop kategorii obsługiwany globalnie przez makeSortable (patrz koniec funkcji)
 
     header.querySelector(".del-btn").addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -792,38 +787,6 @@ function renderNotebook(){
       header.querySelector(".cat-count").textContent = `(${done}/${cat.items.length})`;
     }
 
-    // strefa upuszczania elementu z innej kategorii, gdy lista jest pusta po filtrze
-    itemsEl.addEventListener("dragover", (e) => {
-      if(!dragItem) return;
-      e.preventDefault();
-    });
-    itemsEl.addEventListener("drop", (e) => {
-      if(!dragItem) return;
-      e.preventDefault();
-      moveDraggedItemTo(cat, null);
-    });
-
-    function moveDraggedItemTo(targetCat, beforeItemId){
-      if(!dragItem) return;
-      const srcCat = nb.categories.find(c => c.id === dragItem.catId);
-      if(!srcCat) return;
-      const idx = srcCat.items.findIndex(i => i.id === dragItem.itemId);
-      if(idx === -1) return;
-      const [moved] = srcCat.items.splice(idx, 1);
-      if(targetCat.id === srcCat.id && beforeItemId){
-        const toIdx = targetCat.items.findIndex(i => i.id === beforeItemId);
-        targetCat.items.splice(toIdx === -1 ? targetCat.items.length : toIdx, 0, moved);
-      } else if(beforeItemId){
-        const toIdx = targetCat.items.findIndex(i => i.id === beforeItemId);
-        targetCat.items.splice(toIdx === -1 ? targetCat.items.length : toIdx, 0, moved);
-      } else {
-        targetCat.items.push(moved);
-      }
-      dragItem = null;
-      saveState();
-      renderNotebook();
-    }
-
     function renderItems(){
       itemsEl.querySelectorAll(".item").forEach(el => el.remove());
       const items = visibleItems();
@@ -833,7 +796,7 @@ function renderNotebook(){
         row.dataset.itemId = it.id;
         const visIdx = items.indexOf(it);
         row.innerHTML = `
-          <span class="item-drag-handle" draggable="true" title="Przeciągnij: zmień kolejność lub przenieś do innej kategorii" aria-label="Przeciągnij pozycję">⠿</span>
+          <span class="item-drag-handle" title="Przeciągnij, by zmienić kolejność" aria-label="Przeciągnij pozycję">⠿</span>
           <span class="check-wrap"><input type="checkbox" id="${it.id}" ${state.checked[it.id] ? "checked" : ""} aria-label="${it.text}"></span>
           <div class="item-body">
             <label for="${it.id}"></label>
@@ -841,8 +804,6 @@ function renderNotebook(){
           </div>
           <div class="item-actions">
             <button class="action-btn star-btn${it.priority ? " active" : ""}" title="${it.priority ? "Usuń priorytet" : "Oznacz jako priorytet"}" aria-label="Priorytet: ${it.text}">${it.priority ? "⭐" : "☆"}</button>
-            <button class="action-btn move-up-btn" title="Przesuń w górę" aria-label="Przesuń pozycję ${it.text} w górę" ${visIdx===0 ? "disabled" : ""}>▲</button>
-            <button class="action-btn move-down-btn" title="Przesuń w dół" aria-label="Przesuń pozycję ${it.text} w dół" ${visIdx===items.length-1 ? "disabled" : ""}>▼</button>
             <button class="action-btn edit-btn" title="Edytuj" aria-label="Edytuj pozycję ${it.text}">✎</button>
             <button class="action-btn del-btn" title="Usuń" aria-label="Usuń pozycję ${it.text}">✕</button>
           </div>`;
@@ -864,19 +825,6 @@ function renderNotebook(){
           updateProgress();
           refreshCount();
           if(filter !== "all") renderItems();
-        });
-
-        row.querySelector(".move-up-btn").addEventListener("click", () => {
-          const idx = cat.items.findIndex(x => x.id === it.id);
-          if(idx <= 0) return;
-          [cat.items[idx-1], cat.items[idx]] = [cat.items[idx], cat.items[idx-1]];
-          saveState(); renderItems();
-        });
-        row.querySelector(".move-down-btn").addEventListener("click", () => {
-          const idx = cat.items.findIndex(x => x.id === it.id);
-          if(idx === -1 || idx >= cat.items.length-1) return;
-          [cat.items[idx+1], cat.items[idx]] = [cat.items[idx], cat.items[idx+1]];
-          saveState(); renderItems();
         });
 
         row.querySelector(".del-btn").addEventListener("click", async () => {
@@ -952,25 +900,21 @@ function renderNotebook(){
           qtyInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
         });
 
-        // drag & drop pozycji
-        const handle = row.querySelector(".item-drag-handle");
-        handle.addEventListener("dragstart", (e) => {
-          dragItem = { catId: cat.id, itemId: it.id };
-          row.classList.add("drag-ghost");
-          e.dataTransfer.effectAllowed = "move";
-          e.dataTransfer.setData("text/plain", it.id);
-        });
-        handle.addEventListener("dragend", () => { row.classList.remove("drag-ghost"); dragItem = null; });
-        row.addEventListener("dragover", (e) => { if(dragItem) e.preventDefault(); });
-        row.addEventListener("drop", (e) => {
-          if(!dragItem) return;
-          e.preventDefault();
-          e.stopPropagation();
-          moveDraggedItemTo(cat, it.id);
-        });
-
         itemsEl.insertBefore(row, itemsEl.querySelector(".add-row"));
       });
+
+      if(!itemsEl.dataset.sortableAttached){
+        itemsEl.dataset.sortableAttached = "1";
+        makeSortable(itemsEl, ".item", ".item-drag-handle", (newIdOrder) => {
+          const idToItem = {};
+          cat.items.forEach(it2 => idToItem[it2.id] = it2);
+          const positions = [];
+          cat.items.forEach((it2, idx) => { if(newIdOrder.includes(it2.id)) positions.push(idx); });
+          const newOrderedItems = newIdOrder.map(id => idToItem[id]);
+          positions.forEach((pos, i) => { cat.items[pos] = newOrderedItems[i]; });
+          saveState();
+        });
+      }
     }
 
     const addRow = document.createElement("div");
@@ -1000,6 +944,18 @@ function renderNotebook(){
     catEl.appendChild(itemsEl);
     root.appendChild(catEl);
   });
+
+  if(!root.dataset.sortableAttached){
+    root.dataset.sortableAttached = "1";
+    makeSortable(root, ".cat", ".drag-handle", (newIdOrder) => {
+      const currentNb = getNotebook(state.activeId);
+      if(!currentNb) return;
+      const idToCat = {};
+      currentNb.categories.forEach(c => idToCat[c.id] = c);
+      currentNb.categories = newIdOrder.map(id => idToCat[id]).filter(Boolean);
+      saveState();
+    });
+  }
 
   updateProgress();
 }
@@ -1135,4 +1091,5 @@ renderMenu();
 
 </body>
 </html>
+
 
