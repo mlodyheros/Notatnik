@@ -20,6 +20,9 @@
   body{transition:background-color .2s ease, color .2s ease;}
   .cat, .nb-card, .add-cat-row input, .add-row input, dialog, .toast{transition:background-color .2s ease, border-color .2s ease, color .2s ease;}
   .theme-toggle{font-size:16px; min-width:40px;}
+  .icon{width:15px; height:15px; vertical-align:-3px; margin-right:3px; flex-shrink:0;}
+  button{display:inline-flex; align-items:center; justify-content:center; gap:0;}
+  .theme-toggle .icon{width:18px; height:18px; margin-right:0; vertical-align:middle;}
   *{box-sizing:border-box;}
   body{
     background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
@@ -294,9 +297,9 @@
         <div class="sub">Wybierz listę albo stwórz nową.</div>
       </div>
       <div class="menu-top-actions">
-        <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny">🌙</button>
-        <button id="exportBtn" aria-label="Eksportuj wszystkie notatniki do pliku JSON">⬇ Eksport</button>
-        <button id="importBtn" aria-label="Importuj notatniki z pliku JSON">⬆ Import</button>
+        <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
+        <button id="exportBtn" aria-label="Eksportuj wszystkie notatniki do pliku JSON"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Eksport</button>
+        <button id="importBtn" aria-label="Importuj notatniki z pliku JSON"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import</button>
         <input type="file" id="importFile" accept="application/json" class="hidden">
       </div>
     </div>
@@ -313,7 +316,7 @@
         <span id="nbTitleText"></span>
         <button class="action-btn" id="nbEditBtn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika">✎</button>
       </div>
-      <button id="themeToggleBtn2" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny">🌙</button>
+      <button id="themeToggleBtn2" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
     </div>
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="progress-label" id="progressLabel">0 / 0</div>
@@ -374,10 +377,12 @@
 <script>
 /* ======================= MOTYW ======================= */
 const THEME_KEY = "notebook-theme";
+const MOON_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SUN_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 function applyTheme(theme){
   document.body.classList.toggle("light-theme", theme === "light");
-  const icon = theme === "light" ? "☀️" : "🌙";
-  ["themeToggleBtn","themeToggleBtn2"].forEach(id => { const b = document.getElementById(id); if(b) b.textContent = icon; });
+  const icon = theme === "light" ? SUN_SVG : MOON_SVG;
+  ["themeToggleBtn","themeToggleBtn2"].forEach(id => { const b = document.getElementById(id); if(b) b.innerHTML = icon; });
 }
 function getTheme(){
   try{
@@ -1091,5 +1096,3 @@ renderMenu();
 
 </body>
 </html>
-
-
