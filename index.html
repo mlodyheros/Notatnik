@@ -8,6 +8,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Notatnik</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     /* atrament na papierze: chłodna paleta notesu terenowego, nie generyczny "SaaS dark mode" */
@@ -76,6 +77,7 @@
   }
   .top-bar.scrolled{border-bottom-color:var(--border);}
   .menu-top-row{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
+  .menu-top-actions{display:flex; gap:8px; align-items:center;}
 
   /* ---------- MENU GŁÓWNE ---------- */
   .menu-grid{
@@ -399,21 +401,60 @@
   .visually-hidden{
     position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;
   }
+
+  /* ---------- logowanie ---------- */
+  #authScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .auth-card{
+    width:100%; max-width:380px; background:var(--card); border:1px solid var(--border-soft);
+    border-radius:var(--radius-lg); box-shadow:var(--shadow-md); padding:28px 24px;
+  }
+  .auth-card h1{text-align:center;}
+  .auth-card .sub{text-align:center; margin-bottom:22px;}
+  #authForm{display:flex; flex-direction:column; gap:12px;}
+  #authForm .dlg-input{margin-bottom:0;}
+  .auth-submit{width:100%; justify-content:center; margin-top:4px;}
+  .auth-switch{width:100%; justify-content:center; margin-top:16px;}
+  .auth-error{
+    background:var(--danger-soft); color:var(--danger); border-radius:var(--radius-sm);
+    padding:9px 11px; font-size:12.5px; line-height:1.4;
+  }
+  .dlg-msg{white-space:pre-wrap;}
 </style>
 </head>
 <body>
 
 <div id="toastWrap" aria-live="polite"></div>
 
+<!-- ====== LOGOWANIE ====== -->
+<div id="authScreen" class="hidden">
+  <div class="auth-card">
+    <h1>📒 Notatnik</h1>
+    <div class="sub" id="authSubtitle">Zaloguj się, żeby zsynchronizować swoje listy.</div>
+    <form id="authForm">
+      <input type="email" id="authEmail" class="dlg-input" placeholder="E-mail" autocomplete="email" required>
+      <input type="password" id="authPassword" class="dlg-input" placeholder="Hasło (min. 6 znaków)" autocomplete="current-password" minlength="6" required>
+      <div class="auth-error hidden" id="authError"></div>
+      <button type="submit" class="primary auth-submit" id="authSubmitBtn">Zaloguj się</button>
+    </form>
+    <button type="button" class="text-btn auth-switch" id="authSwitchBtn">Nie masz konta? Zarejestruj się</button>
+  </div>
+</div>
+
 <!-- ====== MENU GŁÓWNE ====== -->
-<div id="menuScreen">
+<div id="menuScreen" class="hidden">
   <div class="top-bar" id="menuTopBar">
     <div class="menu-top-row">
       <div>
         <h1>📒 Notatnik</h1>
         <div class="sub">Wybierz listę albo stwórz nową.</div>
       </div>
-      <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
+      <div class="menu-top-actions">
+        <button id="joinNotebookBtn" title="Dołącz do wspólnego notatnika" aria-label="Dołącz do notatnika przez kod lub link">Dołącz</button>
+        <button id="userMenuBtn" class="theme-toggle popover-trigger" title="Konto" aria-label="Menu konta">👤</button>
+        <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
+      </div>
     </div>
   </div>
   <div class="menu-grid" id="menuGrid"></div>
@@ -471,7 +512,7 @@
   <div id="categories"></div>
 </div>
 
-<div class="footer-bar">
+<div class="footer-bar hidden">
   <button id="exportBtn" aria-label="Eksportuj wszystkie notatniki do pliku JSON"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Eksport</button>
   <button id="importBtn" aria-label="Importuj notatniki z pliku JSON"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import</button>
   <input type="file" id="importFile" accept="application/json" class="hidden">
@@ -524,6 +565,11 @@
 </dialog>
 
 <script>
+/* ======================= SUPABASE ======================= */
+const SUPABASE_URL = "https://uvomhopvxsucnywuwnao.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2b21ob3B2eHN1Y255d3V3bmFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMzcxNDksImV4cCI6MjEwMTYxMzE0OX0.d5h4kL327dI31jj7ymHAcZXpQOP_tF_N8tzo33uiWp8";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 /* ======================= MOTYW ======================= */
 const THEME_KEY = "notebook-theme";
 const MOON_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
@@ -550,6 +596,84 @@ function toggleTheme(){
 applyTheme(getTheme());
 document.getElementById("themeToggleBtn").onclick = toggleTheme;
 document.getElementById("themeToggleBtn2").onclick = toggleTheme;
+
+/* ======================= LOGOWANIE ======================= */
+let authMode = "login"; // "login" | "signup"
+let currentUser = null;
+
+function translateAuthError(msg){
+  const m = (msg || "").toLowerCase();
+  if(m.includes("invalid login credentials")) return "Nieprawidłowy e-mail lub hasło.";
+  if(m.includes("already registered") || m.includes("already exists") || m.includes("user already")) return "Konto z tym adresem e-mail już istnieje — zaloguj się.";
+  if(m.includes("password should be at least")) return "Hasło musi mieć co najmniej 6 znaków.";
+  if(m.includes("unable to validate email") || m.includes("invalid email")) return "Nieprawidłowy adres e-mail.";
+  if(m.includes("email not confirmed")) return "Potwierdź adres e-mail (sprawdź skrzynkę), zanim się zalogujesz.";
+  if(m.includes("failed to fetch") || m.includes("networkerror")) return "Brak połączenia z serwerem — sprawdź internet.";
+  return msg || "Coś poszło nie tak. Spróbuj ponownie.";
+}
+
+function setAuthUI(mode){
+  authMode = mode;
+  document.getElementById("authSubtitle").textContent = mode === "login"
+    ? "Zaloguj się, żeby zsynchronizować swoje listy."
+    : "Załóż konto, żeby zapisywać listy w chmurze.";
+  document.getElementById("authSubmitBtn").textContent = mode === "login" ? "Zaloguj się" : "Zarejestruj się";
+  document.getElementById("authSwitchBtn").textContent = mode === "login" ? "Nie masz konta? Zarejestruj się" : "Masz już konto? Zaloguj się";
+  document.getElementById("authError").classList.add("hidden");
+}
+document.getElementById("authSwitchBtn").addEventListener("click", () => setAuthUI(authMode === "login" ? "signup" : "login"));
+
+document.getElementById("authForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const errEl = document.getElementById("authError");
+  errEl.classList.add("hidden");
+  const submitBtn = document.getElementById("authSubmitBtn");
+  submitBtn.disabled = true;
+  try{
+    if(authMode === "login"){
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+    } else {
+      const { error, data } = await sb.auth.signUp({ email, password });
+      if(error) throw error;
+      if(data && data.user && !data.session){
+        toast("Konto utworzone. Sprawdź e-mail, żeby potwierdzić rejestrację, a potem się zaloguj.", "success");
+        setAuthUI("login");
+      }
+    }
+  }catch(err){
+    errEl.textContent = translateAuthError(err.message);
+    errEl.classList.remove("hidden");
+  }finally{
+    submitBtn.disabled = false;
+  }
+});
+
+async function signOut(){
+  closePopover();
+  await sb.auth.signOut();
+}
+
+function showAuthScreen(){
+  document.getElementById("authScreen").classList.remove("hidden");
+  document.getElementById("menuScreen").classList.add("hidden");
+  document.getElementById("notebookScreen").classList.add("hidden");
+  document.querySelector(".footer-bar").classList.add("hidden");
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  const user = session ? session.user : null;
+  const wasLoggedIn = !!currentUser;
+  currentUser = user;
+  if(user){
+    if(!wasLoggedIn) boot();
+  } else {
+    subscribeToNotebook(null);
+    showAuthScreen();
+  }
+});
 
 /* ======================= TOASTY ======================= */
 function toast(msg, type="", undoFn=null){
@@ -669,64 +793,199 @@ function customPrompt(message, defaultValue="", { title="Nazwa" } = {}){
   });
 }
 
-const STORAGE_KEY = "notebooks-app-state-v2";
-const OLD_KEY_V1 = "notebooks-app-state-v1";
-const OLD_KEY_V0 = "utm-packing-checklist-state";
-
-function uid(prefix){ return `${prefix}-${Date.now()}-${Math.floor(Math.random()*100000)}`; }
+const STORAGE_KEY = "notebooks-app-state-v2"; // stara nazwa localStorage — używana tylko do jednorazowej migracji
 
 let state = { notebooks: [], checked: {}, activeId: null };
 let filter = "all"; // all | active | done
 let searchQuery = "";
 let hideDone = false;
 
-function loadState(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      state = { notebooks: parsed.notebooks || [], checked: parsed.checked || {}, activeId: null };
-      state.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
-      return;
-    }
-  }catch(e){ console.error("Błąd wczytywania", e); toast("Nie udało się wczytać zapisanych danych.", "error"); }
-
-  // migracja z v1
-  try{
-    const rawV1 = localStorage.getItem(OLD_KEY_V1);
-    if(rawV1){
-      const old = JSON.parse(rawV1);
-      if(old.notebooks){
-        old.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
-        state = { notebooks: old.notebooks, checked: old.checked || {}, activeId:null };
-        return;
-      }
-    }
-  }catch(e){ /* ignoruj */ }
-
-  // pierwsze uruchomienie w tej przeglądarce — pusty notatnik, bez gotowych danych
-  state.notebooks = [];
+/* ======================= WARSTWA DANYCH (Supabase) ======================= */
+function dbErr(err, fallbackMsg){
+  console.error(err);
+  toast(`${fallbackMsg}${err && err.message ? ": " + err.message : ""}`, "error");
 }
 
-function saveState(){
-  try{
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }catch(e){
-    console.error("Zapis nieudany", e);
-    toast("⚠️ Nie udało się zapisać zmian (pamięć przeglądarki pełna lub zablokowana). Zrób eksport JSON, żeby nie stracić danych.", "error");
+async function loadFromServer(){
+  const { data: notebooks, error: nbErr } = await sb.from("notebooks").select("*").order("created_at");
+  if(nbErr){ dbErr(nbErr, "Błąd wczytywania notatników"); return; }
+
+  const nbIds = notebooks.map(n => n.id);
+  let categories = [], items = [];
+  if(nbIds.length){
+    const { data: catData, error: catErr } = await sb.from("categories").select("*").in("notebook_id", nbIds).order("position");
+    if(catErr) dbErr(catErr, "Błąd wczytywania kategorii");
+    categories = catData || [];
+    const catIds = categories.map(c => c.id);
+    if(catIds.length){
+      const { data: itemData, error: itemErr } = await sb.from("items").select("*").in("category_id", catIds).order("position");
+      if(itemErr) dbErr(itemErr, "Błąd wczytywania pozycji");
+      items = itemData || [];
+    }
   }
+
+  state = { notebooks: [], checked: {}, activeId: null };
+  const nbById = {};
+  notebooks.forEach(n => {
+    const nb = {
+      id: n.id, name: n.name, color: n.color || "", archived: n.archived,
+      isOwner: n.owner_id === currentUser.id, shareCode: n.share_code,
+      updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : null,
+      categories: []
+    };
+    state.notebooks.push(nb);
+    nbById[nb.id] = nb;
+  });
+  const catById = {};
+  categories.forEach(c => {
+    const nb = nbById[c.notebook_id];
+    if(!nb) return;
+    const cat = { id: c.id, name: c.name, collapsed: c.collapsed, items: [] };
+    nb.categories.push(cat);
+    catById[cat.id] = cat;
+  });
+  items.forEach(it => {
+    const cat = catById[it.category_id];
+    if(!cat) return;
+    cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority });
+    if(it.checked) state.checked[it.id] = true;
+  });
 }
 
-function cloneNotebook(nb, newName){
-  const clone = { id: uid("nb"), name: newName, isUtm:false, categories: [] };
-  nb.categories.forEach(cat => {
-    const newCat = { id: uid("cat"), name: cat.name, items: [] };
-    cat.items.forEach(it => {
-      newCat.items.push({ id: uid("it"), text: it.text, note: it.note || "", priority: false, qty: it.qty || "" });
-    });
-    clone.categories.push(newCat);
+// odświeża tylko kategorie/pozycje jednego notatnika (do realtime i po dołączeniu przez kod)
+async function reloadNotebookData(nb){
+  const { data: cats, error: catErr } = await sb.from("categories").select("*").eq("notebook_id", nb.id).order("position");
+  if(catErr){ dbErr(catErr, "Błąd odświeżania kategorii"); return; }
+  const catIds = (cats || []).map(c => c.id);
+  let itemRows = [];
+  if(catIds.length){
+    const { data: itemData, error: itemErr } = await sb.from("items").select("*").in("category_id", catIds).order("position");
+    if(itemErr){ dbErr(itemErr, "Błąd odświeżania pozycji"); return; }
+    itemRows = itemData || [];
+  }
+  nb.categories.forEach(c => c.items.forEach(it => delete state.checked[it.id]));
+  const newCategories = (cats || []).map(c => ({ id: c.id, name: c.name, collapsed: c.collapsed, items: [] }));
+  const catById = {};
+  newCategories.forEach(c => catById[c.id] = c);
+  itemRows.forEach(it => {
+    const cat = catById[it.category_id];
+    if(!cat) return;
+    cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority });
+    if(it.checked) state.checked[it.id] = true;
   });
-  return clone;
+  nb.categories = newCategories;
+}
+
+async function dbInsertNotebook({ name, color = null }){
+  const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color }).select().single();
+  if(error){ dbErr(error, "Nie udało się utworzyć notatnika"); return null; }
+  return data;
+}
+async function dbUpdateNotebook(id, fields){
+  const { error } = await sb.from("notebooks").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
+  if(error) dbErr(error, "Nie udało się zapisać zmian w notatniku");
+}
+async function dbDeleteNotebook(id){
+  const { error } = await sb.from("notebooks").delete().eq("id", id);
+  if(error) dbErr(error, "Nie udało się usunąć notatnika");
+}
+
+async function dbInsertCategory(notebookId, { name, position = 0, collapsed = false }){
+  const { data, error } = await sb.from("categories").insert({ notebook_id: notebookId, name, position, collapsed }).select().single();
+  if(error){ dbErr(error, "Nie udało się utworzyć kategorii"); return null; }
+  return data;
+}
+async function dbUpdateCategory(id, fields){
+  const { error } = await sb.from("categories").update(fields).eq("id", id);
+  if(error) dbErr(error, "Nie udało się zapisać kategorii");
+}
+async function dbDeleteCategory(id){
+  const { error } = await sb.from("categories").delete().eq("id", id);
+  if(error) dbErr(error, "Nie udało się usunąć kategorii");
+}
+async function dbReorderCategories(nb){
+  await Promise.all(nb.categories.map((c, idx) => sb.from("categories").update({ position: idx }).eq("id", c.id)));
+}
+async function dbBulkSetCategoriesCollapsed(nb, collapsed){
+  const ids = nb.categories.map(c => c.id);
+  if(!ids.length) return;
+  const { error } = await sb.from("categories").update({ collapsed }).in("id", ids);
+  if(error) dbErr(error, "Nie udało się zapisać stanu kategorii");
+}
+
+async function dbInsertItem(categoryId, { text, note = "", qty = "", priority = false, checked = false, position = 0 }){
+  const { data, error } = await sb.from("items").insert({ category_id: categoryId, text, note, qty, priority, checked, position }).select().single();
+  if(error){ dbErr(error, "Nie udało się dodać pozycji"); return null; }
+  return data;
+}
+async function dbUpdateItem(id, fields){
+  const { error } = await sb.from("items").update(fields).eq("id", id);
+  if(error) dbErr(error, "Nie udało się zapisać pozycji");
+}
+async function dbDeleteItem(id){
+  const { error } = await sb.from("items").delete().eq("id", id);
+  if(error) dbErr(error, "Nie udało się usunąć pozycji");
+}
+async function dbDeleteItems(ids){
+  if(!ids.length) return;
+  const { error } = await sb.from("items").delete().in("id", ids);
+  if(error) dbErr(error, "Nie udało się usunąć pozycji");
+}
+async function dbBulkSetChecked(ids, checked){
+  if(!ids.length) return;
+  const { error } = await sb.from("items").update({ checked }).in("id", ids);
+  if(error) dbErr(error, "Nie udało się zaktualizować pozycji");
+}
+async function dbReorderItems(cat){
+  await Promise.all(cat.items.map((it, idx) => sb.from("items").update({ position: idx }).eq("id", it.id)));
+}
+
+// wstawia cały notatnik (opcjonalnie z kategoriami/pozycjami) do bazy i zwraca gotowy obiekt do state.notebooks
+async function dbInsertCategoryTree(notebookId, position, c){
+  const catRow = await dbInsertCategory(notebookId, { name: c.name, position, collapsed: !!c.collapsed });
+  if(!catRow) return null;
+  const cat = { id: catRow.id, name: catRow.name, collapsed: catRow.collapsed, items: [] };
+  const items = c.items || [];
+  for(let ii = 0; ii < items.length; ii++){
+    const it = items[ii];
+    const itemRow = await dbInsertItem(cat.id, {
+      text: it.text, note: it.note || "", qty: it.qty || "",
+      priority: !!it.priority, checked: !!it.checked, position: ii
+    });
+    if(!itemRow) continue;
+    cat.items.push({ id: itemRow.id, text: itemRow.text, note: itemRow.note, qty: itemRow.qty, priority: itemRow.priority });
+    if(itemRow.checked) state.checked[itemRow.id] = true;
+  }
+  return cat;
+}
+
+async function dbInsertNotebookTree({ name, color = null, categories = [] }){
+  const nbRow = await dbInsertNotebook({ name, color });
+  if(!nbRow) return null;
+  const nb = {
+    id: nbRow.id, name: nbRow.name, color: nbRow.color || "", archived: false,
+    isOwner: true, shareCode: nbRow.share_code, updatedAt: Date.now(), categories: []
+  };
+  for(let ci = 0; ci < categories.length; ci++){
+    const cat = await dbInsertCategoryTree(nb.id, ci, categories[ci]);
+    if(cat) nb.categories.push(cat);
+  }
+  return nb;
+}
+
+// wyciąga płaski opis notatnika (bez id) do zduplikowania / zaimportowania
+function extractCategoryTree(cat){
+  return {
+    name: cat.name, collapsed: !!cat.collapsed,
+    items: cat.items.map(it => ({
+      text: it.text, note: it.note || "", qty: it.qty || "",
+      priority: !!it.priority, checked: !!state.checked[it.id]
+    }))
+  };
+}
+
+function extractNotebookTree(nb){
+  return { name: nb.name, color: nb.color || null, categories: nb.categories.map(extractCategoryTree) };
 }
 
 function getNotebook(id){ return state.notebooks.find(n => n.id === id); }
@@ -768,6 +1027,24 @@ document.getElementById("exportBtn").onclick = () => {
   toast("Wyeksportowano plik JSON — możesz go wysłać komuś lub zaimportować na innym urządzeniu.", "success");
 };
 
+// wstawia listę notatników (z eksportu JSON albo z lokalnych danych sprzed logowania) na konto użytkownika
+async function importNotebooksArray(notebooksArr, checkedMap){
+  checkedMap = checkedMap || {};
+  let imported = 0;
+  for(const nb of notebooksArr){
+    const categories = (nb.categories || []).map(c => ({
+      name: c.name, collapsed: !!c.collapsed,
+      items: (c.items || []).map(it => ({
+        text: it.text, note: it.note || "", qty: it.qty || "",
+        priority: !!it.priority, checked: !!checkedMap[it.id]
+      }))
+    }));
+    const built = await dbInsertNotebookTree({ name: nb.name, color: nb.color || null, categories });
+    if(built){ state.notebooks.push(built); imported++; }
+  }
+  return imported;
+}
+
 document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
 document.getElementById("importFile").addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -777,16 +1054,14 @@ document.getElementById("importFile").addEventListener("change", async (e) => {
     const text = await file.text();
     const parsed = JSON.parse(text);
     if(!parsed || !Array.isArray(parsed.notebooks)) throw new Error("zły format");
-    const replace = await customConfirm(
-      "Zaimportowany plik zastąpi wszystkie obecne notatniki. Kliknij „Zamień”, albo Anuluj, by przerwać.",
-      { title:"Importować dane?", okLabel:"Zamień" }
+    const ok = await customConfirm(
+      `Zaimportować ${parsed.notebooks.length} notatnik(ów) z pliku na Twoje konto? Zostaną dodane obok istniejących.`,
+      { title:"Importować dane?", okLabel:"Importuj" }
     );
-    if(!replace) return;
-    parsed.notebooks.forEach(nb => nb.categories.forEach(cat => cat.items.forEach(it => { if(it.note === undefined) it.note = ""; if(it.priority === undefined) it.priority = false; if(it.qty === undefined) it.qty = ""; })));
-    state = { notebooks: parsed.notebooks, checked: parsed.checked || {}, activeId: null };
-    saveState();
+    if(!ok) return;
+    const imported = await importNotebooksArray(parsed.notebooks, parsed.checked);
     renderMenu();
-    toast("Zaimportowano dane.", "success");
+    toast(`Zaimportowano ${imported} notatnik(ów).`, "success");
   }catch(err){
     console.error(err);
     toast("Nie udało się wczytać pliku — sprawdź, czy to poprawny eksport z tego notatnika.", "error");
@@ -875,48 +1150,75 @@ function buildNbCard(nb){
   colorInputEl.addEventListener("change", (e) => {
     nb.color = e.target.value;
     touchNotebook(nb);
-    saveState();
+    dbUpdateNotebook(nb.id, { color: nb.color });
     renderMenu();
   });
   card.querySelector(".nb-tab").addEventListener("click", (e) => e.stopPropagation());
 
   card.querySelector(".card-menu-btn").addEventListener("click", (e) => {
     e.stopPropagation();
-    openMenu(e.currentTarget, [
+    const items = [
       { label:"✎ Zmień nazwę", onClick: async () => {
         const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
-        if(v){ nb.name = v; touchNotebook(nb); saveState(); renderMenu(); }
+        if(v){ nb.name = v; touchNotebook(nb); dbUpdateNotebook(nb.id, { name: v }); renderMenu(); }
       }},
       { label:"⧉ Duplikuj notatnik", onClick: async () => {
         const name = await customPrompt("Nazwa dla kopii notatnika:", nb.name + " (kopia)", { title:"Duplikuj notatnik" });
         if(!name) return;
-        const clone = cloneNotebook(nb, name);
-        state.notebooks.push(clone);
-        saveState(); renderMenu();
+        const tree = extractNotebookTree(nb);
+        tree.name = name;
+        const built = await dbInsertNotebookTree(tree);
+        if(!built) return;
+        state.notebooks.push(built);
+        renderMenu();
         toast("Utworzono kopię notatnika.", "success");
-      }},
-      { label: (nb.archived ? "Przywróć z archiwum" : "Archiwizuj"), icon: ARCHIVE_SVG, onClick: () => {
-        nb.archived = !nb.archived;
-        touchNotebook(nb);
-        saveState(); renderMenu();
-        toast(nb.archived ? `Zarchiwizowano „${nb.name}”.` : `Przywrócono „${nb.name}”.`, "", () => {
-          nb.archived = !nb.archived;
-          saveState(); renderMenu();
-        });
-      }},
-      { divider:true },
-      { label:"✕ Usuń notatnik", danger:true, onClick: async () => {
-        const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością?`, { title:"Usunąć notatnik?" });
-        if(!ok) return;
-        const idxAtDelete = state.notebooks.indexOf(nb);
-        state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
-        saveState(); renderMenu();
-        toast(`Usunięto „${nb.name}”.`, "", () => {
-          state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, nb);
-          saveState(); renderMenu();
-        });
       }}
-    ]);
+    ];
+    if(nb.isOwner){
+      items.push(
+        { label:"🔗 Udostępnij", onClick: () => showShareDialog(nb) },
+        { label: (nb.archived ? "Przywróć z archiwum" : "Archiwizuj"), icon: ARCHIVE_SVG, onClick: () => {
+          nb.archived = !nb.archived;
+          touchNotebook(nb);
+          dbUpdateNotebook(nb.id, { archived: nb.archived });
+          renderMenu();
+          toast(nb.archived ? `Zarchiwizowano „${nb.name}”.` : `Przywrócono „${nb.name}”.`, "", () => {
+            nb.archived = !nb.archived;
+            dbUpdateNotebook(nb.id, { archived: nb.archived });
+            renderMenu();
+          });
+        }},
+        { divider:true },
+        { label:"✕ Usuń notatnik", danger:true, onClick: async () => {
+          const ok = await customConfirm(`Usunąć notatnik „${nb.name}” razem z zawartością?`, { title:"Usunąć notatnik?" });
+          if(!ok) return;
+          const idxAtDelete = state.notebooks.indexOf(nb);
+          state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
+          dbDeleteNotebook(nb.id);
+          renderMenu();
+          toast(`Usunięto „${nb.name}”.`, "", async () => {
+            const built = await dbInsertNotebookTree(extractNotebookTree(nb));
+            if(!built) return;
+            state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, built);
+            renderMenu();
+          });
+        }}
+      );
+    } else {
+      items.push(
+        { divider:true },
+        { label:"✕ Opuść notatnik", danger:true, onClick: async () => {
+          const ok = await customConfirm(`Opuścić wspólny notatnik „${nb.name}”? Nie usunie go to właścicielowi.`, { title:"Opuścić notatnik?", okLabel:"Opuść" });
+          if(!ok) return;
+          const { error } = await sb.from("notebook_members").delete().eq("notebook_id", nb.id).eq("user_id", currentUser.id);
+          if(error){ dbErr(error, "Nie udało się opuścić notatnika"); return; }
+          state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
+          renderMenu();
+          toast(`Opuszczono „${nb.name}”.`, "success");
+        }}
+      );
+    }
+    openMenu(e.currentTarget, items);
   });
   return card;
 }
@@ -940,13 +1242,12 @@ function renderMenu(){
     if(!name) return;
     const templateId = await chooseTemplate();
     const template = NB_TEMPLATES.find(t => t.id === templateId) || NB_TEMPLATES[0];
-    const nb = { id: uid("nb"), name, isUtm:false, categories: [], updatedAt: Date.now() };
-    template.categories.forEach(c => {
-      nb.categories.push({ id: uid("cat"), name: c.name, items: [], collapsed:false });
+    const built = await dbInsertNotebookTree({
+      name, categories: template.categories.map(c => ({ name: c.name, collapsed:false, items: [] }))
     });
-    state.notebooks.push(nb);
-    saveState();
-    openNotebook(nb.id);
+    if(!built) return;
+    state.notebooks.push(built);
+    openNotebook(built.id);
   }
   newCard.addEventListener("click", createNb);
   newCard.addEventListener("keydown", e => { if(e.key === "Enter") createNb(); });
@@ -978,11 +1279,13 @@ function openNotebook(id){
   ["exportBtn","importBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
   ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
   renderNotebook();
+  subscribeToNotebook(getNotebook(id));
 }
 
 function backToMenu(){
   state.activeId = null;
   closePopover();
+  subscribeToNotebook(null);
   document.getElementById("notebookScreen").classList.add("hidden");
   document.getElementById("menuScreen").classList.remove("hidden");
   ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
@@ -1054,6 +1357,8 @@ function renderNotebook(){
   if(nb.color){ pf.style.background = nb.color; pf.style.animation = "none"; }
   else { pf.style.background = ""; pf.style.animation = ""; }
   document.getElementById("utmNote").classList.toggle("hidden", !nb.isUtm);
+  document.getElementById("archiveNbBtn").classList.toggle("hidden", !nb.isOwner);
+  document.getElementById("deleteNbBtn").classList.toggle("hidden", !nb.isOwner);
   updateFilterCounts(nb);
 
   const root = document.getElementById("categories");
@@ -1078,7 +1383,7 @@ function renderNotebook(){
       if(e.target.closest(".card-menu-btn") || e.target.closest(".drag-handle")) return;
       cat.collapsed = !cat.collapsed;
       catEl.classList.toggle("collapsed", cat.collapsed);
-      saveState();
+      dbUpdateCategory(cat.id, { collapsed: cat.collapsed });
     });
 
     // drag & drop kategorii obsługiwany globalnie przez makeSortable (patrz koniec funkcji)
@@ -1089,43 +1394,51 @@ function renderNotebook(){
         { label:"Zaznacz wszystkie", onClick: () => {
           cat.items.forEach(it => state.checked[it.id] = true);
           touchNotebook(nb);
-          saveState(); renderNotebook();
+          dbBulkSetChecked(cat.items.map(it => it.id), true);
+          renderNotebook();
           toast(`Zaznaczono wszystko w „${cat.name}”.`);
         }},
         { label:"Odznacz wszystkie", onClick: () => {
           cat.items.forEach(it => delete state.checked[it.id]);
           touchNotebook(nb);
-          saveState(); renderNotebook();
+          dbBulkSetChecked(cat.items.map(it => it.id), false);
+          renderNotebook();
         }},
         { divider:true },
-        { label:"⧉ Duplikuj kategorię", onClick: () => {
-          const newCat = { id: uid("cat"), name: cat.name + " (kopia)", items: [] };
-          cat.items.forEach(it => newCat.items.push({ id: uid("it"), text: it.text, note: it.note || "", priority:false, qty: it.qty || "" }));
+        { label:"⧉ Duplikuj kategorię", onClick: async () => {
           const idx = nb.categories.indexOf(cat);
+          const tree = extractCategoryTree(cat);
+          tree.name = cat.name + " (kopia)";
+          const newCat = await dbInsertCategoryTree(nb.id, idx + 1, tree);
+          if(!newCat) return;
           nb.categories.splice(idx+1, 0, newCat);
+          await dbReorderCategories(nb);
           touchNotebook(nb);
-          saveState(); renderNotebook();
+          renderNotebook();
           toast("Skopiowano kategorię.", "success");
         }},
         { label:"✎ Zmień nazwę", onClick: async () => {
           const v = await customPrompt("Nowa nazwa kategorii:", cat.name, { title:"Zmień nazwę kategorii" });
-          if(v){ cat.name = v; touchNotebook(nb); saveState(); renderNotebook(); }
+          if(v){ cat.name = v; touchNotebook(nb); dbUpdateCategory(cat.id, { name: v }); renderNotebook(); }
         }},
         { divider:true },
         { label:"✕ Usuń kategorię", danger:true, onClick: async () => {
           const ok = await customConfirm(`Usunąć kategorię „${cat.name}” wraz z pozycjami?`, { title:"Usunąć kategorię?" });
           if(!ok) return;
           const catIdxAtDelete = nb.categories.indexOf(cat);
-          const savedChecked = {};
-          cat.items.forEach(it => { if(state.checked[it.id]) savedChecked[it.id] = true; delete state.checked[it.id]; });
+          const tree = extractCategoryTree(cat);
+          cat.items.forEach(it => delete state.checked[it.id]);
           nb.categories = nb.categories.filter(c => c.id !== cat.id);
+          dbDeleteCategory(cat.id);
           touchNotebook(nb);
-          saveState(); renderNotebook();
-          toast(`Usunięto kategorię „${cat.name}”.`, "", () => {
-            nb.categories.splice(Math.min(catIdxAtDelete, nb.categories.length), 0, cat);
-            Object.keys(savedChecked).forEach(id => state.checked[id] = true);
+          renderNotebook();
+          toast(`Usunięto kategorię „${cat.name}”.`, "", async () => {
+            const restored = await dbInsertCategoryTree(nb.id, Math.min(catIdxAtDelete, nb.categories.length), tree);
+            if(!restored) return;
+            nb.categories.splice(Math.min(catIdxAtDelete, nb.categories.length), 0, restored);
+            await dbReorderCategories(nb);
             touchNotebook(nb);
-            saveState(); renderNotebook();
+            renderNotebook();
           });
         }}
       ]);
@@ -1179,7 +1492,7 @@ function renderNotebook(){
         row.querySelector(".star-btn").addEventListener("click", () => {
           it.priority = !it.priority;
           touchNotebook(nb);
-          saveState();
+          dbUpdateItem(it.id, { priority: it.priority });
           renderItems();
         });
         const noteEl = row.querySelector(".item-note");
@@ -1190,7 +1503,7 @@ function renderNotebook(){
           row.classList.toggle("checked", e.target.checked);
           if(e.target.checked){ e.target.classList.remove("pop"); void e.target.offsetWidth; e.target.classList.add("pop"); }
           touchNotebook(nb);
-          saveState();
+          dbUpdateItem(it.id, { checked: e.target.checked });
           updateProgress();
           refreshCount();
           if(filter !== "all") renderItems();
@@ -1203,12 +1516,18 @@ function renderNotebook(){
           row.addEventListener("animationend", () => {
             cat.items = cat.items.filter(x => x.id !== it.id);
             delete state.checked[it.id];
-            saveState();
+            dbDeleteItem(it.id);
             renderItems(); updateProgress(); refreshCount();
-            toast(`Usunięto „${it.text}”.`, "", () => {
-              cat.items.splice(Math.min(idx, cat.items.length), 0, it);
-              if(wasChecked) state.checked[it.id] = true;
-              saveState();
+            toast(`Usunięto „${it.text}”.`, "", async () => {
+              const restoredIdx = Math.min(idx, cat.items.length);
+              const row2 = await dbInsertItem(cat.id, {
+                text: it.text, note: it.note || "", qty: it.qty || "",
+                priority: !!it.priority, checked: wasChecked, position: restoredIdx
+              });
+              if(!row2) return;
+              cat.items.splice(restoredIdx, 0, { id: row2.id, text: row2.text, note: row2.note, qty: row2.qty, priority: row2.priority });
+              if(wasChecked) state.checked[row2.id] = true;
+              await dbReorderItems(cat);
               renderItems(); updateProgress(); refreshCount();
             });
           }, { once:true });
@@ -1247,7 +1566,7 @@ function renderNotebook(){
             it.note = noteInput.value.trim();
             it.qty = qtyInput.value.trim();
             touchNotebook(nb);
-            saveState();
+            dbUpdateItem(it.id, { text: it.text, note: it.note, qty: it.qty });
           }
 
           if(moveSelect){
@@ -1257,9 +1576,10 @@ function renderNotebook(){
               commitTextNote();
               const targetCat = nb.categories.find(c => c.id === targetId);
               cat.items = cat.items.filter(x => x.id !== it.id);
+              const newPosition = targetCat.items.length;
               targetCat.items.push(it);
               touchNotebook(nb);
-              saveState();
+              dbUpdateItem(it.id, { category_id: targetCat.id, position: newPosition });
               renderNotebook();
               toast(`Przeniesiono „${it.text}” do „${targetCat.name}”.`);
             });
@@ -1289,7 +1609,7 @@ function renderNotebook(){
           cat.items.forEach((it2, idx) => { if(newIdOrder.includes(it2.id)) positions.push(idx); });
           const newOrderedItems = newIdOrder.map(id => idToItem[id]);
           positions.forEach((pos, i) => { cat.items[pos] = newOrderedItems[i]; });
-          saveState();
+          dbReorderItems(cat);
         });
       }
     }
@@ -1301,13 +1621,14 @@ function renderNotebook(){
     input.setAttribute("aria-label", `Dodaj pozycję do kategorii ${cat.name}`);
     const addBtn = document.createElement("button");
     addBtn.textContent = "+ Dodaj";
-    function addItem(){
+    async function addItem(){
       const text = input.value.trim();
       if(!text) return;
-      cat.items.push({ id: uid("it"), text, note:"", priority:false, qty:"" });
       input.value = "";
+      const row = await dbInsertItem(cat.id, { text, position: cat.items.length });
+      if(!row) return;
+      cat.items.push({ id: row.id, text: row.text, note: row.note, qty: row.qty, priority: row.priority });
       touchNotebook(nb);
-      saveState();
       renderItems(); updateProgress(); refreshCount();
     }
     addBtn.onclick = addItem;
@@ -1331,7 +1652,7 @@ function renderNotebook(){
       const idToCat = {};
       currentNb.categories.forEach(c => idToCat[c.id] = c);
       currentNb.categories = newIdOrder.map(id => idToCat[id]).filter(Boolean);
-      saveState();
+      dbReorderCategories(currentNb);
     });
   }
 
@@ -1393,7 +1714,7 @@ document.getElementById("nbEditBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
   const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
-  if(v){ nb.name = v; touchNotebook(nb); saveState(); renderNotebook(); }
+  if(v){ nb.name = v; touchNotebook(nb); dbUpdateNotebook(nb.id, { name: v }); renderNotebook(); }
 };
 
 /* ======================= KOPIUJ JAKO TEKST ======================= */
@@ -1458,41 +1779,47 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
     }
   });
   touchNotebook(nb);
-  saveState(); renderNotebook();
+  nb.categories.forEach(cat => dbReorderItems(cat));
+  renderNotebook();
   toast("Posortowano.", "", () => {
     snapshot.forEach(s => {
       const cat = nb.categories.find(c => c.id === s.id);
       if(cat) cat.items = s.items;
     });
     touchNotebook(nb);
-    saveState(); renderNotebook();
+    nb.categories.forEach(cat => dbReorderItems(cat));
+    renderNotebook();
   });
 });
 
-document.getElementById("addCatBtn").onclick = () => {
+document.getElementById("addCatBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
   const input = document.getElementById("newCatInput");
   const name = input.value.trim();
   if(!name) return;
-  nb.categories.push({ id: uid("cat"), name, items: [], collapsed:false });
   input.value = "";
+  const row = await dbInsertCategory(nb.id, { name, position: nb.categories.length, collapsed:false });
+  if(!row) return;
+  nb.categories.push({ id: row.id, name: row.name, collapsed: row.collapsed, items: [] });
   touchNotebook(nb);
-  saveState(); renderNotebook();
+  renderNotebook();
 };
 document.getElementById("newCatInput").addEventListener("keydown", e => { if(e.key === "Enter") document.getElementById("addCatBtn").click(); });
 
 document.getElementById("expandAll").onclick = () => {
   const nb = getNotebook(state.activeId);
-  if(nb) nb.categories.forEach(c => c.collapsed = false);
+  if(!nb) return;
+  nb.categories.forEach(c => c.collapsed = false);
   document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
-  saveState();
+  dbBulkSetCategoriesCollapsed(nb, false);
 };
 document.getElementById("collapseAll").onclick = () => {
   const nb = getNotebook(state.activeId);
-  if(nb) nb.categories.forEach(c => c.collapsed = true);
+  if(!nb) return;
+  nb.categories.forEach(c => c.collapsed = true);
   document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
-  saveState();
+  dbBulkSetCategoriesCollapsed(nb, true);
 };
 
 const moreActionsMenuEl = document.getElementById("moreActionsMenu");
@@ -1514,8 +1841,10 @@ document.getElementById("resetAll").onclick = async () => {
   if(!nb) return;
   const ok = await customConfirm("Wyczyścić wszystkie zaznaczenia w tym notatniku? (pozycje zostaną)", { title:"Wyczyścić zaznaczenia?", okLabel:"Wyczyść" });
   if(!ok) return;
-  nb.categories.forEach(cat => cat.items.forEach(it => delete state.checked[it.id]));
-  saveState(); renderNotebook();
+  const allIds = [];
+  nb.categories.forEach(cat => cat.items.forEach(it => { delete state.checked[it.id]; allIds.push(it.id); }));
+  dbBulkSetChecked(allIds, false);
+  renderNotebook();
 };
 document.getElementById("deleteCheckedBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
@@ -1533,15 +1862,24 @@ document.getElementById("deleteCheckedBtn").onclick = async () => {
   const removedChecked = {};
   removed.forEach(r => { removedChecked[r.item.id] = true; delete state.checked[r.item.id]; });
   touchNotebook(nb);
-  saveState(); renderNotebook();
-  toast(`Usunięto ${count} pozycji.`, "success", () => {
-    removed.forEach(r => {
+  dbDeleteItems(removed.map(r => r.item.id));
+  renderNotebook();
+  toast(`Usunięto ${count} pozycji.`, "success", async () => {
+    for(const r of removed){
       const cat = nb.categories.find(c => c.id === r.catId);
-      if(cat) cat.items.splice(Math.min(r.index, cat.items.length), 0, r.item);
-      if(removedChecked[r.item.id]) state.checked[r.item.id] = true;
-    });
+      if(!cat) continue;
+      const idx = Math.min(r.index, cat.items.length);
+      const row = await dbInsertItem(cat.id, {
+        text: r.item.text, note: r.item.note || "", qty: r.item.qty || "",
+        priority: !!r.item.priority, checked: !!removedChecked[r.item.id], position: idx
+      });
+      if(!row) continue;
+      cat.items.splice(idx, 0, { id: row.id, text: row.text, note: row.note, qty: row.qty, priority: row.priority });
+      if(row.checked) state.checked[row.id] = true;
+      await dbReorderItems(cat);
+    }
     touchNotebook(nb);
-    saveState(); renderNotebook();
+    renderNotebook();
   });
 };
 document.getElementById("archiveNbBtn").onclick = () => {
@@ -1549,11 +1887,12 @@ document.getElementById("archiveNbBtn").onclick = () => {
   if(!nb) return;
   nb.archived = true;
   touchNotebook(nb);
-  saveState();
+  dbUpdateNotebook(nb.id, { archived: true });
   backToMenu();
   toast(`Zarchiwizowano „${nb.name}”.`, "", () => {
     nb.archived = false;
-    saveState(); renderMenu();
+    dbUpdateNotebook(nb.id, { archived: false });
+    renderMenu();
   });
 };
 document.getElementById("deleteNbBtn").onclick = async () => {
@@ -1562,12 +1901,15 @@ document.getElementById("deleteNbBtn").onclick = async () => {
   const ok = await customConfirm(`Usunąć cały notatnik „${nb.name}”?`, { title:"Usunąć notatnik?" });
   if(!ok) return;
   const idxAtDelete = state.notebooks.indexOf(nb);
+  const tree = extractNotebookTree(nb);
   state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
-  saveState();
+  dbDeleteNotebook(nb.id);
   backToMenu();
-  toast(`Usunięto „${nb.name}”.`, "", () => {
-    state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, nb);
-    saveState(); renderMenu();
+  toast(`Usunięto „${nb.name}”.`, "", async () => {
+    const built = await dbInsertNotebookTree(tree);
+    if(!built) return;
+    state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, built);
+    renderMenu();
   });
 };
 
@@ -1616,9 +1958,128 @@ document.getElementById("archiveToggle").addEventListener("click", () => {
   btn.classList.toggle("open", !grid.classList.contains("hidden"));
 });
 
+/* ======================= UDOSTĘPNIANIE ======================= */
+function buildShareLink(code){
+  const url = new URL(location.href);
+  url.search = ""; url.hash = "";
+  url.searchParams.set("join", code);
+  return url.toString();
+}
+
+async function showShareDialog(nb){
+  const link = buildShareLink(nb.shareCode);
+  const copy = await customConfirm(
+    `Wyślij ten link znajomemu, żeby dołączył do notatnika „${nb.name}”:\n\n${link}`,
+    { title:"Udostępnij notatnik", okLabel:"Kopiuj link" }
+  );
+  if(!copy) return;
+  try{
+    await navigator.clipboard.writeText(link);
+    toast("Link skopiowany.", "success");
+  }catch(e){
+    toast("Nie udało się skopiować — skopiuj link ręcznie.", "error");
+  }
+}
+
+function extractJoinCode(input){
+  input = input.trim();
+  try{
+    const url = new URL(input);
+    const code = url.searchParams.get("join");
+    if(code) return code;
+  }catch(e){ /* to nie URL — traktuj jako sam kod */ }
+  return input;
+}
+
+async function joinNotebookByCode(code){
+  if(!code) return;
+  try{
+    const { error } = await sb.rpc("join_notebook", { code });
+    if(error) throw error;
+    await loadFromServer();
+    renderMenu();
+    toast("Dołączono do notatnika.", "success");
+  }catch(err){
+    toast("Nie udało się dołączyć — sprawdź kod lub link zaproszenia.", "error");
+  }
+}
+
+document.getElementById("joinNotebookBtn").addEventListener("click", async () => {
+  const input = await customPrompt("Wklej link albo kod zaproszenia:", "", { title:"Dołącz do notatnika" });
+  if(!input) return;
+  await joinNotebookByCode(extractJoinCode(input));
+});
+
+async function handleJoinParam(){
+  const params = new URLSearchParams(location.search);
+  const code = params.get("join");
+  if(!code) return;
+  await joinNotebookByCode(code);
+  params.delete("join");
+  const qs = params.toString();
+  history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
+}
+
+/* ======================= KONTO / WYLOGOWANIE ======================= */
+document.getElementById("userMenuBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  openMenu(e.currentTarget, [
+    { label: currentUser ? currentUser.email : "", onClick: () => {} },
+    { divider:true },
+    { label:"Wyloguj się", danger:true, onClick: () => signOut() }
+  ]);
+});
+
+/* ======================= REALTIME ======================= */
+let realtimeChannel = null;
+function subscribeToNotebook(nb){
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+  if(!nb) return;
+  realtimeChannel = sb.channel(`notebook-${nb.id}`)
+    .on("postgres_changes", { event:"*", schema:"public", table:"categories", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
+    .on("postgres_changes", { event:"*", schema:"public", table:"items" }, () => refreshActiveNotebook())
+    .subscribe();
+}
+let refreshPending = false;
+async function refreshActiveNotebook(){
+  const nb = getNotebook(state.activeId);
+  if(!nb || refreshPending) return;
+  refreshPending = true;
+  await reloadNotebookData(nb);
+  renderNotebook();
+  refreshPending = false;
+}
+
+/* ======================= MIGRACJA LOKALNYCH DANYCH ======================= */
+async function offerLocalImport(){
+  if(state.notebooks.length > 0) return;
+  let raw;
+  try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){ return; }
+  if(!raw) return;
+  let parsed;
+  try{ parsed = JSON.parse(raw); }catch(e){ return; }
+  if(!parsed || !Array.isArray(parsed.notebooks) || !parsed.notebooks.length) return;
+  const ok = await customConfirm(
+    `Znaleziono ${parsed.notebooks.length} notatnik(ów) zapisanych lokalnie na tym urządzeniu (sprzed logowania). Zaimportować je na Twoje konto?`,
+    { title:"Znaleziono lokalne dane", okLabel:"Importuj" }
+  );
+  if(!ok) return;
+  const imported = await importNotebooksArray(parsed.notebooks, parsed.checked);
+  toast(`Zaimportowano ${imported} notatnik(ów).`, "success");
+}
+
 /* ======================= START ======================= */
-loadState();
-renderMenu();
+async function boot(){
+  await loadFromServer();
+  await handleJoinParam();
+  await offerLocalImport();
+  document.getElementById("authScreen").classList.add("hidden");
+  document.getElementById("notebookScreen").classList.add("hidden");
+  document.getElementById("menuScreen").classList.remove("hidden");
+  document.querySelector(".footer-bar").classList.remove("hidden");
+  state.activeId = null;
+  renderMenu();
+}
 </script>
 
 </body>
