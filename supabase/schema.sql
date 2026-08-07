@@ -1,6 +1,12 @@
 -- Notatnik — schemat bazy danych dla Supabase (Postgres)
 -- Uruchom całość w Supabase Dashboard -> SQL Editor -> New query -> Run.
--- Skrypt jest bezpieczny do ponownego uruchomienia (najpierw czyści poprzednią wersję).
+--
+-- ⚠️ UWAGA: ten skrypt na starcie robi DROP TABLE ... CASCADE na notebooks/
+-- categories/items/notebook_members — czyli KASUJE WSZYSTKIE dane. To był
+-- świadomy wybór na etapie budowania schematu od zera, zanim ktokolwiek miał
+-- tu realne dane. TERAZ, gdy w bazie są prawdziwe notatniki użytkowników,
+-- NIE URUCHAMIAJ TEGO PLIKU PONOWNIE — kolejne zmiany schematu idą do osobnych
+-- plików migracji (np. migration_002_*.sql), które tylko dodają nowe rzeczy.
 
 create extension if not exists pgcrypto;
 

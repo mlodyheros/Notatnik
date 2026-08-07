@@ -49,7 +49,7 @@
     -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
     margin:0; padding:0; line-height:1.45; letter-spacing:-.01em;
   }
-  #menuScreen, #notebookScreen{
+  #menuScreen, #notebookScreen, #sharedScreen, #profileScreen{
     max-width:820px; margin:0 auto;
     padding:0 20px calc(92px + env(safe-area-inset-bottom));
   }
@@ -63,7 +63,7 @@
   .hidden{display:none !important;}
   a{color:var(--accent);}
 
-  #menuScreen, #notebookScreen{animation:screenIn .32s ease both;}
+  #menuScreen, #notebookScreen, #sharedScreen, #profileScreen{animation:screenIn .32s ease both;}
   @keyframes screenIn{
     from{opacity:0; transform:translateY(10px) scale(.99);}
     to{opacity:1; transform:translateY(0) scale(1);}
@@ -312,6 +312,7 @@
     flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
   }
   .footer-bar::-webkit-scrollbar{display:none;}
+  .footer-bar:not(:has(> button:not(.hidden))){display:none;}
 
   /* ---------- popover / rozwijane menu ---------- */
   .popover-menu{
@@ -375,7 +376,8 @@
   .template-option .t-name{font-weight:600; margin-bottom:2px;}
   .template-option .t-desc{color:var(--muted); font-size:12px;}
   .dlg-actions button{min-height:38px;}
-  .dlg-actions .primary{background:var(--accent); border-color:var(--accent); color:#08131f; font-weight:600;}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#08131f; font-weight:600;}
+  button.primary:disabled{opacity:.5; cursor:default;}
   .dlg-actions .danger{background:var(--danger); border-color:var(--danger); color:#2a0a0a; font-weight:600;}
 
   /* ---------- toast ---------- */
@@ -384,16 +386,18 @@
     display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none;
   }
   .toast{
-    background:var(--toast-bg); border:1px solid var(--border); color:var(--text); font-size:13px;
-    padding:10px 12px 10px 16px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg);
+    background:var(--toast-bg); border:1px solid var(--border); border-left:4px solid var(--muted);
+    color:var(--text); font-size:13.5px; font-weight:500;
+    padding:10px 14px 10px 14px; border-radius:var(--radius-md); box-shadow:var(--shadow-lg);
     animation:toastIn .2s ease both; display:flex; align-items:center; gap:12px; pointer-events:auto;
+    max-width:min(420px, 88vw);
   }
   .toast-undo{
     background:var(--accent); color:#08131f; border:none; border-radius:7px; font-weight:600;
     padding:5px 11px; font-size:12px; min-height:auto; cursor:pointer; flex-shrink:0;
   }
-  .toast.error{border-color:var(--danger); color:#ffb4b4;}
-  .toast.success{border-color:var(--done); color:#b8f5cf;}
+  .toast.error{border-left-color:var(--danger);}
+  .toast.success{border-left-color:var(--done);}
   .toast.out{animation:toastOut .25s ease forwards;}
   @keyframes toastIn{from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);}}
   @keyframes toastOut{to{opacity:0; transform:translateY(-8px);}}
@@ -401,6 +405,55 @@
   .visually-hidden{
     position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;
   }
+
+  /* ---------- dolna nawigacja (zakładki) ---------- */
+  .tab-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex;
+    background:var(--card); background:color-mix(in srgb, var(--card) 96%, transparent);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-top:1px solid var(--border); box-shadow:var(--shadow-lg);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .tab-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    background:none; border:none; box-shadow:none; border-radius:0; min-height:58px;
+    color:var(--muted); font-size:11.5px; font-weight:500; transition:color .15s ease;
+  }
+  .tab-btn:hover{border-color:transparent;}
+  .tab-btn .tab-icon{font-size:19px; line-height:1;}
+  .tab-btn.active{color:var(--accent);}
+  body.has-tabbar #menuScreen, body.has-tabbar #sharedScreen, body.has-tabbar #profileScreen{
+    padding-bottom:calc(150px + env(safe-area-inset-bottom));
+  }
+  body.has-tabbar .footer-bar{ bottom:58px; }
+
+  /* ---------- profil ---------- */
+  .profile-card{display:flex; align-items:center; gap:16px; margin-bottom:20px;}
+  .avatar-label{position:relative; cursor:pointer; flex-shrink:0; display:block; width:72px; height:72px;}
+  .avatar-img{
+    width:72px; height:72px; border-radius:50%; object-fit:cover; display:block;
+    background:var(--border); border:1px solid var(--border-soft);
+  }
+  .avatar-edit-badge{
+    position:absolute; bottom:-2px; right:-2px; background:var(--accent); color:#08131f;
+    width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:12px; border:2px solid var(--bg);
+  }
+  .profile-fields{flex:1; min-width:0; display:flex; flex-direction:column; gap:8px;}
+  .profile-username-row{display:flex; gap:8px;}
+  .section-heading{
+    font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; margin:20px 0 10px;
+  }
+  .friend-list{display:flex; flex-direction:column; gap:8px;}
+  .friend-row{
+    display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--border-soft);
+    border-radius:var(--radius-md); padding:10px 12px; box-shadow:var(--shadow-sm);
+  }
+  .friend-row .avatar-img{width:38px; height:38px;}
+  .friend-row .friend-name{flex:1; min-width:0; font-weight:600; font-size:14px; word-break:break-word;}
+  .friend-row .friend-actions{display:flex; gap:6px; flex-shrink:0;}
+  #friendSearchResults{margin-top:10px;}
 
   /* ---------- logowanie ---------- */
   #authScreen{
@@ -451,8 +504,6 @@
         <div class="sub">Wybierz listę albo stwórz nową.</div>
       </div>
       <div class="menu-top-actions">
-        <button id="joinNotebookBtn" title="Dołącz do wspólnego notatnika" aria-label="Dołącz do notatnika przez kod lub link">Dołącz</button>
-        <button id="userMenuBtn" class="theme-toggle popover-trigger" title="Konto" aria-label="Menu konta">👤</button>
         <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
       </div>
     </div>
@@ -463,6 +514,78 @@
     <button id="archiveToggle" class="archive-toggle"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> Archiwum</button>
     <div class="menu-grid hidden" id="archiveGrid"></div>
   </div>
+</div>
+
+<!-- ====== WSPÓLNE LISTY ZE ZNAJOMYMI ====== -->
+<div id="sharedScreen" class="hidden">
+  <div class="top-bar">
+    <div class="menu-top-row">
+      <div>
+        <h1>🤝 Wspólne</h1>
+        <div class="sub">Listy, które udostępnili Ci znajomi.</div>
+      </div>
+      <div class="menu-top-actions">
+        <button id="joinNotebookBtn" title="Dołącz do wspólnego notatnika" aria-label="Dołącz do notatnika przez kod lub link">Dołącz przez kod</button>
+      </div>
+    </div>
+  </div>
+  <div class="menu-grid" id="sharedGrid"></div>
+  <div class="sub hidden" id="sharedEmptyState" style="margin-top:8px;">Nie masz jeszcze żadnych wspólnych list — poproś znajomego o link albo dodaj go w zakładce Profil i zaproś bezpośrednio.</div>
+</div>
+
+<!-- ====== PROFIL I ZNAJOMI ====== -->
+<div id="profileScreen" class="hidden">
+  <div class="top-bar">
+    <div class="menu-top-row">
+      <div>
+        <h1>👤 Profil</h1>
+        <div class="sub">Twoje konto i znajomi.</div>
+      </div>
+      <div class="menu-top-actions">
+        <button id="themeToggleBtn3" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="profile-card">
+    <label class="avatar-label" title="Zmień zdjęcie profilowe">
+      <img id="avatarPreview" class="avatar-img" alt="Zdjęcie profilowe">
+      <div class="avatar-edit-badge">✎</div>
+      <input type="file" id="avatarInput" accept="image/*" class="hidden">
+    </label>
+    <div class="profile-fields">
+      <div class="profile-username-row">
+        <input type="text" id="usernameInput" class="dlg-input" placeholder="Nick" style="margin-bottom:0;">
+        <button id="saveUsernameBtn">Zapisz</button>
+      </div>
+      <div class="sub" id="profileEmailLabel" style="margin-bottom:0;"></div>
+    </div>
+  </div>
+
+  <button id="logoutBtn" class="reset" style="width:100%; margin-bottom:24px;">Wyloguj się</button>
+
+  <div class="section-heading">Dodaj znajomego</div>
+  <div class="add-cat-row">
+    <input type="text" id="friendSearchInput" placeholder="Wpisz nick znajomego..." aria-label="Szukaj znajomego po nicku">
+    <button id="friendSearchBtn">Szukaj</button>
+  </div>
+  <div id="friendSearchResults"></div>
+
+  <div id="incomingRequestsSection" class="hidden">
+    <div class="section-heading">Zaproszenia do znajomych</div>
+    <div id="incomingRequestsList" class="friend-list"></div>
+  </div>
+
+  <div class="section-heading">Znajomi</div>
+  <div id="friendsList" class="friend-list"></div>
+  <div class="sub hidden" id="friendsEmptyState">Nie masz jeszcze żadnych znajomych — znajdź ich po nicku powyżej.</div>
+</div>
+
+<!-- ====== NAWIGACJA DOLNA ====== -->
+<div id="mainTabBar" class="tab-bar hidden">
+  <button class="tab-btn active" data-tab="mine"><span class="tab-icon">📒</span>Notatniki</button>
+  <button class="tab-btn" data-tab="shared"><span class="tab-icon">🤝</span>Wspólne</button>
+  <button class="tab-btn" data-tab="profile"><span class="tab-icon">👤</span>Profil</button>
 </div>
 
 <!-- ====== WIDOK POJEDYNCZEGO NOTATNIKA ====== -->
@@ -579,7 +702,7 @@ const STAR_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="curr
 function applyTheme(theme){
   document.body.classList.toggle("light-theme", theme === "light");
   const icon = theme === "light" ? SUN_SVG : MOON_SVG;
-  ["themeToggleBtn","themeToggleBtn2"].forEach(id => { const b = document.getElementById(id); if(b) b.innerHTML = icon; });
+  ["themeToggleBtn","themeToggleBtn2","themeToggleBtn3"].forEach(id => { const b = document.getElementById(id); if(b) b.innerHTML = icon; });
 }
 function getTheme(){
   try{
@@ -596,6 +719,7 @@ function toggleTheme(){
 applyTheme(getTheme());
 document.getElementById("themeToggleBtn").onclick = toggleTheme;
 document.getElementById("themeToggleBtn2").onclick = toggleTheme;
+document.getElementById("themeToggleBtn3").onclick = toggleTheme;
 
 /* ======================= LOGOWANIE ======================= */
 let authMode = "login"; // "login" | "signup"
@@ -636,7 +760,10 @@ document.getElementById("authForm").addEventListener("submit", async (e) => {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if(error) throw error;
     } else {
-      const { error, data } = await sb.auth.signUp({ email, password });
+      const { error, data } = await sb.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: location.origin + location.pathname }
+      });
       if(error) throw error;
       if(data && data.user && !data.session){
         toast("Konto utworzone. Sprawdź e-mail, żeby potwierdzić rejestrację, a potem się zaloguj.", "success");
@@ -659,8 +786,11 @@ async function signOut(){
 function showAuthScreen(){
   document.getElementById("authScreen").classList.remove("hidden");
   document.getElementById("menuScreen").classList.add("hidden");
+  document.getElementById("sharedScreen").classList.add("hidden");
+  document.getElementById("profileScreen").classList.add("hidden");
   document.getElementById("notebookScreen").classList.add("hidden");
   document.querySelector(".footer-bar").classList.add("hidden");
+  hideTabBar();
 }
 
 sb.auth.onAuthStateChange((event, session) => {
@@ -676,7 +806,7 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 
 /* ======================= TOASTY ======================= */
-function toast(msg, type="", undoFn=null){
+function toast(msg, type="", undoFn=null, opts={}){
   const wrap = document.getElementById("toastWrap");
   const el = document.createElement("div");
   el.className = "toast" + (type ? " " + type : "");
@@ -693,12 +823,13 @@ function toast(msg, type="", undoFn=null){
   if(undoFn){
     const btn = document.createElement("button");
     btn.className = "toast-undo";
-    btn.textContent = "Cofnij";
+    btn.textContent = opts.actionLabel || "Cofnij";
     btn.onclick = () => { undoFn(); dismiss(); };
     el.appendChild(btn);
   }
   wrap.appendChild(el);
-  setTimeout(dismiss, undoFn ? 5500 : 2600);
+  if(!opts.persist) setTimeout(dismiss, undoFn ? 5500 : 2600);
+  return dismiss;
 }
 
 /* ======================= DIALOGI (zamiast confirm/prompt) ======================= */
@@ -1177,6 +1308,18 @@ function buildNbCard(nb){
     if(nb.isOwner){
       items.push(
         { label:"🔗 Udostępnij", onClick: () => showShareDialog(nb) },
+        { label:"👥 Zaproś znajomego", onClick: async () => {
+          const { friends } = await loadFriendsData();
+          if(!friends.length){ toast("Nie masz jeszcze znajomych — dodaj ich w zakładce Profil.", "error"); return; }
+          openMenu(e.currentTarget, friends.map(f => ({
+            label: (f.profile && f.profile.username) || "Użytkownik",
+            onClick: async () => {
+              const { error } = await sb.rpc("invite_friend_to_notebook", { nb_id: nb.id, friend_id: f.userId });
+              if(error){ dbErr(error, "Nie udało się zaprosić"); return; }
+              toast(`Zaproszono ${(f.profile && f.profile.username) || "znajomego"} do „${nb.name}”.`, "success");
+            }
+          })));
+        }},
         { label: (nb.archived ? "Przywróć z archiwum" : "Archiwizuj"), icon: ARCHIVE_SVG, onClick: () => {
           nb.archived = !nb.archived;
           touchNotebook(nb);
@@ -1267,7 +1410,9 @@ function renderMenu(){
 }
 
 /* ======================= RENDER: NOTATNIK ======================= */
-function openNotebook(id){
+let returnTab = "mine";
+async function openNotebook(id){
+  returnTab = currentTab;
   state.activeId = id;
   filter = "all"; searchQuery = ""; hideDone = false;
   document.getElementById("searchInput").value = "";
@@ -1275,11 +1420,20 @@ function openNotebook(id){
   document.getElementById("hideDoneToggle").setAttribute("aria-pressed","false");
   document.querySelectorAll(".filter-chip[data-filter]").forEach(b => { b.classList.toggle("active", b.dataset.filter === "all"); b.setAttribute("aria-pressed", b.dataset.filter === "all"); });
   document.getElementById("menuScreen").classList.add("hidden");
+  document.getElementById("sharedScreen").classList.add("hidden");
+  document.getElementById("profileScreen").classList.add("hidden");
   document.getElementById("notebookScreen").classList.remove("hidden");
+  hideTabBar();
   ["exportBtn","importBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
   ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
   renderNotebook();
   subscribeToNotebook(getNotebook(id));
+  // dociągnij świeże dane z serwera (na wypadek zmian od współedytorów sprzed otwarcia notatnika)
+  const nb = getNotebook(id);
+  if(nb){
+    await reloadNotebookData(nb);
+    if(state.activeId === id) renderNotebook();
+  }
 }
 
 function backToMenu(){
@@ -1287,10 +1441,10 @@ function backToMenu(){
   closePopover();
   subscribeToNotebook(null);
   document.getElementById("notebookScreen").classList.add("hidden");
-  document.getElementById("menuScreen").classList.remove("hidden");
+  showTabBar();
   ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
   ["exportBtn","importBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
-  renderMenu();
+  showTab(returnTab);
 }
 
 // Uniwersalne przeciąganie (mysz + dotyk) do zmiany kolejności elementów w liście
@@ -1923,7 +2077,14 @@ window.addEventListener("scroll", () => {
 /* ======================= PWA / OFFLINE ======================= */
 if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
   window.addEventListener("load", () => {
+    const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register("sw.js").catch(() => { /* brak sw.js obok pliku — cicho ignoruj */ });
+    let announced = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if(announced || !hadController) { announced = true; return; }
+      announced = true;
+      toast("Dostępna nowa wersja aplikacji.", "", () => location.reload(), { actionLabel:"Odśwież teraz", persist:true });
+    });
   });
 }
 
@@ -2020,15 +2181,228 @@ async function handleJoinParam(){
   history.replaceState(null, "", location.pathname + (qs ? "?" + qs : ""));
 }
 
-/* ======================= KONTO / WYLOGOWANIE ======================= */
-document.getElementById("userMenuBtn").addEventListener("click", (e) => {
-  e.stopPropagation();
-  openMenu(e.currentTarget, [
-    { label: currentUser ? currentUser.email : "", onClick: () => {} },
-    { divider:true },
-    { label:"Wyloguj się", danger:true, onClick: () => signOut() }
-  ]);
+/* ======================= NAWIGACJA (ZAKŁADKI) ======================= */
+let currentTab = "mine";
+function showTab(tab){
+  currentTab = tab;
+  document.getElementById("menuScreen").classList.toggle("hidden", tab !== "mine");
+  document.getElementById("sharedScreen").classList.toggle("hidden", tab !== "shared");
+  document.getElementById("profileScreen").classList.toggle("hidden", tab !== "profile");
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.getElementById("exportBtn").classList.toggle("hidden", tab !== "mine");
+  document.getElementById("importBtn").classList.toggle("hidden", tab !== "mine");
+  if(tab === "mine") renderMenu();
+  else if(tab === "shared") renderShared();
+  else if(tab === "profile") renderProfile();
+}
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => showTab(btn.dataset.tab));
 });
+
+function showTabBar(){
+  document.getElementById("mainTabBar").classList.remove("hidden");
+  document.body.classList.add("has-tabbar");
+}
+function hideTabBar(){
+  document.getElementById("mainTabBar").classList.add("hidden");
+  document.body.classList.remove("has-tabbar");
+}
+
+/* ======================= PROFIL ======================= */
+let currentProfile = null;
+
+async function loadProfile(){
+  const { data, error } = await sb.from("profiles").select("*").eq("id", currentUser.id).single();
+  if(error){ dbErr(error, "Nie udało się wczytać profilu"); return; }
+  currentProfile = data;
+}
+async function dbUpdateProfile(fields){
+  const { error } = await sb.from("profiles").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", currentUser.id);
+  if(error){ dbErr(error, "Nie udało się zapisać profilu"); return false; }
+  Object.assign(currentProfile, fields);
+  return true;
+}
+function displayName(profile){
+  return (profile && profile.username) || (profile && profile.id === currentUser.id ? currentUser.email : "") || "Użytkownik";
+}
+function avatarSrc(profile){
+  return (profile && profile.avatar_url) || DEFAULT_AVATAR_SVG;
+}
+const DEFAULT_AVATAR_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8891a0" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>`
+);
+
+async function uploadAvatar(file){
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${currentUser.id}/avatar.${ext}`;
+  const { error } = await sb.storage.from("avatars").upload(path, file, { upsert: true });
+  if(error){ dbErr(error, "Nie udało się wgrać zdjęcia"); return; }
+  const { data } = sb.storage.from("avatars").getPublicUrl(path);
+  const url = data.publicUrl + "?t=" + Date.now();
+  await dbUpdateProfile({ avatar_url: url });
+  renderProfile();
+  toast("Zaktualizowano zdjęcie profilowe.", "success");
+}
+
+document.getElementById("avatarInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if(file) await uploadAvatar(file);
+});
+
+document.getElementById("saveUsernameBtn").addEventListener("click", async () => {
+  const v = document.getElementById("usernameInput").value.trim();
+  if(!v){ toast("Podaj nick."); return; }
+  if(!/^[a-zA-Z0-9_.]{3,20}$/.test(v)){
+    toast("Nick może mieć 3-20 znaków: litery, cyfry, kropkę lub podkreślnik.", "error");
+    return;
+  }
+  const ok = await dbUpdateProfile({ username: v });
+  if(ok) toast("Zapisano nick.", "success");
+});
+
+document.getElementById("logoutBtn").addEventListener("click", () => signOut());
+
+/* ======================= ZNAJOMI ======================= */
+async function loadFriendsData(){
+  const { data, error } = await sb.from("friend_requests").select("*")
+    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+  if(error){ dbErr(error, "Błąd wczytywania znajomych"); return { friends:[], incoming:[], outgoing:[] }; }
+  const friends = [], incoming = [], outgoing = [];
+  data.forEach(r => {
+    if(r.status === "accepted"){
+      friends.push({ requestId:r.id, userId: r.sender_id === currentUser.id ? r.receiver_id : r.sender_id });
+    } else if(r.receiver_id === currentUser.id){
+      incoming.push(r);
+    } else {
+      outgoing.push(r);
+    }
+  });
+  const ids = [...friends.map(f => f.userId), ...incoming.map(r => r.sender_id), ...outgoing.map(r => r.receiver_id)];
+  let profilesById = {};
+  if(ids.length){
+    const { data: profs } = await sb.from("profiles").select("id,username,avatar_url").in("id", ids);
+    (profs || []).forEach(p => profilesById[p.id] = p);
+  }
+  friends.forEach(f => f.profile = profilesById[f.userId]);
+  incoming.forEach(r => r.profile = profilesById[r.sender_id]);
+  outgoing.forEach(r => r.profile = profilesById[r.receiver_id]);
+  return { friends, incoming, outgoing };
+}
+
+function buildFriendRow(profile, actionsHtml){
+  const row = document.createElement("div");
+  row.className = "friend-row";
+  row.innerHTML = `
+    <img class="avatar-img" src="${avatarSrc(profile)}" alt="">
+    <div class="friend-name">${(profile && profile.username) || "(usunięty użytkownik)"}</div>
+    <div class="friend-actions">${actionsHtml || ""}</div>
+  `;
+  return row;
+}
+
+async function renderProfile(){
+  document.getElementById("avatarPreview").src = avatarSrc(currentProfile);
+  document.getElementById("usernameInput").value = (currentProfile && currentProfile.username) || "";
+  document.getElementById("profileEmailLabel").textContent = currentUser.email;
+  document.getElementById("friendSearchResults").innerHTML = "";
+
+  const { friends, incoming } = await loadFriendsData();
+
+  const incomingSection = document.getElementById("incomingRequestsSection");
+  const incomingList = document.getElementById("incomingRequestsList");
+  incomingList.innerHTML = "";
+  incomingSection.classList.toggle("hidden", incoming.length === 0);
+  incoming.forEach(r => {
+    const row = buildFriendRow(r.profile, "");
+    const acceptBtn = document.createElement("button");
+    acceptBtn.className = "primary";
+    acceptBtn.textContent = "Akceptuj";
+    acceptBtn.onclick = async () => {
+      const { error } = await sb.from("friend_requests").update({ status:"accepted" }).eq("id", r.id);
+      if(error){ dbErr(error, "Nie udało się zaakceptować"); return; }
+      toast(`${r.profile ? r.profile.username : "Użytkownik"} jest teraz Twoim znajomym.`, "success");
+      renderProfile();
+    };
+    const rejectBtn = document.createElement("button");
+    rejectBtn.className = "action-btn del-btn";
+    rejectBtn.textContent = "✕";
+    rejectBtn.title = "Odrzuć";
+    rejectBtn.onclick = async () => {
+      const { error } = await sb.from("friend_requests").delete().eq("id", r.id);
+      if(error){ dbErr(error, "Nie udało się odrzucić"); return; }
+      renderProfile();
+    };
+    row.querySelector(".friend-actions").append(acceptBtn, rejectBtn);
+    incomingList.appendChild(row);
+  });
+
+  const friendsList = document.getElementById("friendsList");
+  friendsList.innerHTML = "";
+  document.getElementById("friendsEmptyState").classList.toggle("hidden", friends.length > 0);
+  friends.forEach(f => {
+    const row = buildFriendRow(f.profile, "");
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "action-btn del-btn";
+    removeBtn.textContent = "✕";
+    removeBtn.title = "Usuń ze znajomych";
+    removeBtn.onclick = async () => {
+      const ok = await customConfirm(`Usunąć ${f.profile ? f.profile.username : "tego użytkownika"} ze znajomych?`, { title:"Usunąć znajomego?" });
+      if(!ok) return;
+      const { error } = await sb.from("friend_requests").delete().eq("id", f.requestId);
+      if(error){ dbErr(error, "Nie udało się usunąć"); return; }
+      renderProfile();
+    };
+    row.querySelector(".friend-actions").appendChild(removeBtn);
+    friendsList.appendChild(row);
+  });
+}
+
+document.getElementById("friendSearchBtn").addEventListener("click", async () => {
+  const q = document.getElementById("friendSearchInput").value.trim();
+  const resultsEl = document.getElementById("friendSearchResults");
+  resultsEl.innerHTML = "";
+  if(!q) return;
+  const { data, error } = await sb.from("profiles").select("id,username,avatar_url")
+    .ilike("username", `%${q}%`).neq("id", currentUser.id).limit(10);
+  if(error){ dbErr(error, "Błąd wyszukiwania"); return; }
+  if(!data.length){ resultsEl.innerHTML = `<div class="sub">Nie znaleziono nikogo o takim nicku.</div>`; return; }
+  const { friends, incoming, outgoing } = await loadFriendsData();
+  const friendIds = new Set(friends.map(f => f.userId));
+  const pendingIds = new Set([...incoming.map(r => r.sender_id), ...outgoing.map(r => r.receiver_id)]);
+  data.forEach(p => {
+    const row = buildFriendRow(p, "");
+    const btn = document.createElement("button");
+    if(friendIds.has(p.id)){
+      btn.textContent = "Już znajomi";
+      btn.disabled = true;
+    } else if(pendingIds.has(p.id)){
+      btn.textContent = "Oczekuje";
+      btn.disabled = true;
+    } else {
+      btn.className = "primary";
+      btn.textContent = "Dodaj";
+      btn.onclick = async () => {
+        const { error: reqErr } = await sb.from("friend_requests").insert({ sender_id: currentUser.id, receiver_id: p.id });
+        if(reqErr){ dbErr(reqErr, "Nie udało się wysłać zaproszenia"); return; }
+        toast(`Wysłano zaproszenie do ${p.username}.`, "success");
+        btn.textContent = "Oczekuje"; btn.disabled = true;
+      };
+    }
+    row.querySelector(".friend-actions").appendChild(btn);
+    resultsEl.appendChild(row);
+  });
+});
+document.getElementById("friendSearchInput").addEventListener("keydown", e => { if(e.key === "Enter") document.getElementById("friendSearchBtn").click(); });
+
+/* ======================= WSPÓLNE (ZE ZNAJOMYMI) ======================= */
+function renderShared(){
+  const grid = document.getElementById("sharedGrid");
+  grid.innerHTML = "";
+  const shared = state.notebooks.filter(nb => !nb.archived && !nb.isOwner);
+  shared.forEach(nb => grid.appendChild(buildNbCard(nb)));
+  document.getElementById("sharedEmptyState").classList.toggle("hidden", shared.length > 0);
+}
 
 /* ======================= REALTIME ======================= */
 let realtimeChannel = null;
@@ -2070,15 +2444,15 @@ async function offerLocalImport(){
 
 /* ======================= START ======================= */
 async function boot(){
-  await loadFromServer();
+  await Promise.all([loadFromServer(), loadProfile()]);
   await handleJoinParam();
   await offerLocalImport();
   document.getElementById("authScreen").classList.add("hidden");
   document.getElementById("notebookScreen").classList.add("hidden");
-  document.getElementById("menuScreen").classList.remove("hidden");
   document.querySelector(".footer-bar").classList.remove("hidden");
   state.activeId = null;
-  renderMenu();
+  showTabBar();
+  showTab("mine");
 }
 </script>
 
