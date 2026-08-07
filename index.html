@@ -174,6 +174,14 @@
     color:var(--text); padding:10px 12px; font-size:14px; transition:border-color .15s ease;
   }
   .search-input:focus{outline:none; border-color:var(--accent);}
+  .note-textarea{
+    display:block; width:100%; min-height:60vh; resize:vertical; background:var(--card);
+    border:1px solid var(--border-soft); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);
+    color:var(--text); padding:16px; font-size:15px; line-height:1.6; font-family:inherit;
+    transition:border-color .15s ease;
+  }
+  .note-textarea:focus{outline:none; border-color:var(--accent);}
+  .note-textarea:disabled{opacity:.75; cursor:default;}
   .filter-row{
     display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
   }
@@ -391,7 +399,8 @@
   }
   .template-option:active{transform:scale(.98);}
   .template-option:hover{border-color:var(--accent); background:var(--accent-soft);}
-  .template-option .t-icon{font-size:20px; flex-shrink:0;}
+  .template-option .t-icon{flex-shrink:0; display:flex; align-items:center; justify-content:center; width:22px; height:22px; color:var(--accent);}
+  .template-option .t-icon svg{width:100%; height:100%; margin:0;}
   .template-option .t-name{font-weight:600; margin-bottom:2px;}
   .template-option .t-desc{color:var(--muted); font-size:12px;}
   .dlg-actions button{min-height:38px;}
@@ -652,31 +661,37 @@
     <b>Czego NIE daje:</b> pościeli, ręczników, naczyń/sztućców, kosmetyków, dekoracji, drobnego sprzętu kuchennego.
   </div>
 
-  <div class="control-panel">
-    <input type="search" id="searchInput" class="search-input" placeholder="Szukaj pozycji..." aria-label="Szukaj pozycji w notatniku">
-    <div class="filter-row">
-      <button class="filter-chip active" data-filter="all" aria-pressed="true">Wszystko <span class="chip-count" id="countAll"></span></button>
-      <button class="filter-chip" data-filter="active" aria-pressed="false">Do zrobienia <span class="chip-count" id="countActive"></span></button>
-      <button class="filter-chip" data-filter="done" aria-pressed="false">Zrobione <span class="chip-count" id="countDone"></span></button>
-      <button class="filter-chip" data-filter="priority" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Priorytet</button>
-      <button class="filter-chip" id="hideDoneToggle" aria-pressed="false">Ukryj ukończone</button>
+  <div id="checklistBody">
+    <div class="control-panel">
+      <input type="search" id="searchInput" class="search-input" placeholder="Szukaj pozycji..." aria-label="Szukaj pozycji w notatniku">
+      <div class="filter-row">
+        <button class="filter-chip active" data-filter="all" aria-pressed="true">Wszystko <span class="chip-count" id="countAll"></span></button>
+        <button class="filter-chip" data-filter="active" aria-pressed="false">Do zrobienia <span class="chip-count" id="countActive"></span></button>
+        <button class="filter-chip" data-filter="done" aria-pressed="false">Zrobione <span class="chip-count" id="countDone"></span></button>
+        <button class="filter-chip" data-filter="priority" aria-pressed="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Priorytet</button>
+        <button class="filter-chip" id="hideDoneToggle" aria-pressed="false">Ukryj ukończone</button>
+      </div>
+      <div class="panel-secondary-row">
+        <button id="copyTextBtn" class="text-btn" title="Kopiuj listę jako czysty tekst"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Kopiuj jako tekst</button>
+        <select id="sortSelect" class="sort-select" aria-label="Sortuj pozycje">
+          <option value="">⇅ Sortuj: ręcznie</option>
+          <option value="az">Sortuj: A → Z</option>
+          <option value="unchecked-first">Sortuj: nieukończone na górze</option>
+        </select>
+      </div>
     </div>
-    <div class="panel-secondary-row">
-      <button id="copyTextBtn" class="text-btn" title="Kopiuj listę jako czysty tekst"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Kopiuj jako tekst</button>
-      <select id="sortSelect" class="sort-select" aria-label="Sortuj pozycje">
-        <option value="">⇅ Sortuj: ręcznie</option>
-        <option value="az">Sortuj: A → Z</option>
-        <option value="unchecked-first">Sortuj: nieukończone na górze</option>
-      </select>
+
+    <div class="add-cat-row">
+      <input type="text" id="newCatInput" placeholder="Nazwa nowej kategorii, np. Siłownia..." aria-label="Nazwa nowej kategorii">
+      <button id="addCatBtn">+ Kategoria</button>
     </div>
+
+    <div id="categories"></div>
   </div>
 
-  <div class="add-cat-row">
-    <input type="text" id="newCatInput" placeholder="Nazwa nowej kategorii, np. Siłownia..." aria-label="Nazwa nowej kategorii">
-    <button id="addCatBtn">+ Kategoria</button>
+  <div id="noteEditorWrap" class="hidden">
+    <textarea id="noteContentInput" class="note-textarea" placeholder="Zacznij pisać..."></textarea>
   </div>
-
-  <div id="categories"></div>
 </div>
 
 <input type="file" id="importFile" accept="application/json" class="hidden">
@@ -716,6 +731,26 @@
     <div class="dlg-actions">
       <button id="promptCancel">Anuluj</button>
       <button class="primary" id="promptOk">OK</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="notebookTypeDialog">
+  <div class="dlg-body">
+    <div class="dlg-title">Jaki rodzaj notatnika?</div>
+    <div class="dlg-msg">Wybierz, czy ma to być zwykła notatka, czy lista z kategoriami do odhaczania.</div>
+    <div class="template-list" id="notebookTypeList">
+      <button class="template-option" data-type="note">
+        <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+        <span><span class="t-name">Zwykła notatka</span><br><span class="t-desc">Puste pole do pisania, bez kategorii — jak notatnik w telefonie.</span></span>
+      </button>
+      <button class="template-option" data-type="checklist">
+        <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <span><span class="t-name">Checklista</span><br><span class="t-desc">Kategorie z pozycjami do odhaczenia.</span></span>
+      </button>
+    </div>
+    <div class="dlg-actions">
+      <button id="notebookTypeCancel">Anuluj</button>
     </div>
   </div>
 </dialog>
@@ -943,18 +978,67 @@ function customConfirm(message, { title="Potwierdź", okLabel="Usuń" } = {}){
   });
 }
 
+function svgIcon(pathsInner){
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pathsInner}</svg>`;
+}
+const TPL_ICON_EMPTY = svgIcon(`<path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>`);
+const TPL_ICON_CART = svgIcon(`<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>`);
+const TPL_ICON_BRIEFCASE = svgIcon(`<rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>`);
+const TPL_ICON_CHECK = svgIcon(`<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`);
+const TPL_ICON_DROPLET = svgIcon(`<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>`);
+const TPL_ICON_DOLLAR = svgIcon(`<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>`);
+const TPL_ICON_COFFEE = svgIcon(`<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>`);
+const TPL_ICON_GIFT = svgIcon(`<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>`);
+
 const NB_TEMPLATES = [
-  { id:"empty", icon:"📄", name:"Pusta kartka", desc:"Sam dodajesz kategorie.", categories:[] },
-  { id:"shopping", icon:"🛒", name:"Lista zakupów", desc:"Do kupienia, świeże, chemia/kosmetyki.", categories:[
-    { name:"🛒 Do kupienia", items:[] }, { name:"🥦 Świeże", items:[] }, { name:"🧴 Chemia / kosmetyki", items:[] }
+  { id:"empty", icon:TPL_ICON_EMPTY, name:"Pusta kartka", desc:"Sam dodajesz kategorie.", categories:[] },
+  { id:"shopping", icon:TPL_ICON_CART, name:"Lista zakupów", desc:"Do kupienia, świeże, chemia/kosmetyki.", categories:[
+    { name:"Do kupienia", items:[] }, { name:"Świeże", items:[] }, { name:"Chemia / kosmetyki", items:[] }
   ]},
-  { id:"packing", icon:"🧳", name:"Pakowanie", desc:"Ubrania, kosmetyczka, dokumenty, elektronika.", categories:[
-    { name:"👕 Ubrania", items:[] }, { name:"🧴 Kosmetyczka", items:[] }, { name:"📄 Dokumenty", items:[] }, { name:"🔌 Elektronika", items:[] }
+  { id:"packing", icon:TPL_ICON_BRIEFCASE, name:"Pakowanie na wyjazd", desc:"Ubrania, kosmetyczka, dokumenty, elektronika.", categories:[
+    { name:"Ubrania", items:[] }, { name:"Kosmetyczka", items:[] }, { name:"Dokumenty", items:[] }, { name:"Elektronika", items:[] }
   ]},
-  { id:"tasks", icon:"✅", name:"Lista zadań", desc:"Pilne, do zrobienia, zrobione.", categories:[
-    { name:"🔥 Pilne", items:[] }, { name:"📌 Do zrobienia", items:[] }, { name:"✅ Zrobione / w toku", items:[] }
+  { id:"tasks", icon:TPL_ICON_CHECK, name:"Lista zadań", desc:"Pilne, do zrobienia, zrobione.", categories:[
+    { name:"Pilne", items:[] }, { name:"Do zrobienia", items:[] }, { name:"Zrobione / w toku", items:[] }
+  ]},
+  { id:"cleaning", icon:TPL_ICON_DROPLET, name:"Sprzątanie", desc:"Kuchnia, łazienka, salon, sypialnia.", categories:[
+    { name:"Kuchnia", items:[] }, { name:"Łazienka", items:[] }, { name:"Salon", items:[] }, { name:"Sypialnia", items:[] }
+  ]},
+  { id:"budget", icon:TPL_ICON_DOLLAR, name:"Budżet domowy", desc:"Rachunki, zakupy, oszczędności.", categories:[
+    { name:"Rachunki", items:[] }, { name:"Zakupy", items:[] }, { name:"Oszczędności", items:[] }
+  ]},
+  { id:"meals", icon:TPL_ICON_COFFEE, name:"Plan posiłków", desc:"Śniadania, obiady, kolacje, przekąski.", categories:[
+    { name:"Śniadania", items:[] }, { name:"Obiady", items:[] }, { name:"Kolacje", items:[] }, { name:"Przekąski", items:[] }
+  ]},
+  { id:"gifts", icon:TPL_ICON_GIFT, name:"Prezenty", desc:"Rodzina, przyjaciele, współpracownicy.", categories:[
+    { name:"Rodzina", items:[] }, { name:"Przyjaciele", items:[] }, { name:"Współpracownicy", items:[] }
   ]}
 ];
+
+function chooseNotebookType(){
+  return new Promise(resolve => {
+    const dlg = document.getElementById("notebookTypeDialog");
+    const list = document.getElementById("notebookTypeList");
+    const cancelBtn = document.getElementById("notebookTypeCancel");
+    function onPick(e){
+      const btn = e.target.closest("[data-type]");
+      if(!btn) return;
+      cleanup(btn.dataset.type);
+    }
+    function cleanup(result){
+      list.removeEventListener("click", onPick);
+      cancelBtn.removeEventListener("click", onCancel);
+      dlg.removeEventListener("cancel", onCancel);
+      dlg.close();
+      resolve(result);
+    }
+    function onCancel(){ cleanup(null); }
+    list.addEventListener("click", onPick);
+    cancelBtn.addEventListener("click", onCancel);
+    dlg.addEventListener("cancel", onCancel);
+    dlg.showModal();
+  });
+}
 
 function chooseTemplate(){
   return new Promise(resolve => {
@@ -979,6 +1063,23 @@ function chooseTemplate(){
     cancelBtn.addEventListener("click", onCancel);
     dlg.addEventListener("cancel", onCancel);
     dlg.showModal();
+  });
+}
+
+// wspólny przepływ tworzenia notatnika: nazwa -> rodzaj (notatka/checklista) -> ew. szablon -> insert
+async function createNotebookViaFlow(namePrompt, defaultName, dialogTitle, isShared){
+  const name = await customPrompt(namePrompt, defaultName, { title: dialogTitle });
+  if(!name) return null;
+  const kind = await chooseNotebookType();
+  if(!kind) return null;
+  if(kind === "note"){
+    return await dbInsertNotebookTree({ name, type:"note", isShared, categories: [] });
+  }
+  const templateId = await chooseTemplate();
+  const template = NB_TEMPLATES.find(t => t.id === templateId) || NB_TEMPLATES[0];
+  return await dbInsertNotebookTree({
+    name, type:"checklist", isShared,
+    categories: template.categories.map(c => ({ name: c.name, collapsed:false, items: [] }))
   });
 }
 
@@ -1062,6 +1163,7 @@ async function loadFromServer(){
       id: n.id, name: n.name, color: n.color || "", archived: n.archived,
       isOwner: n.owner_id === currentUser.id, ownerId: n.owner_id, shareCode: n.share_code,
       updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : null,
+      isShared: !!n.is_shared, type: n.type || "checklist", noteContent: n.note_content || "",
       members: [], memberCount: 1, myRole: n.owner_id === currentUser.id ? "owner" : "editor",
       categories: []
     };
@@ -1075,6 +1177,7 @@ async function loadFromServer(){
   });
   state.notebooks.forEach(nb => {
     nb.memberCount = 1 + nb.members.length;
+    if(nb.memberCount > 1) nb.isShared = true;
     if(!nb.isOwner){
       const mine = nb.members.find(m => m.userId === currentUser.id);
       nb.myRole = mine ? mine.role : "editor";
@@ -1101,6 +1204,7 @@ async function refreshMembership(nb){
   if(error){ dbErr(error, "Błąd odświeżania członków notatnika"); return; }
   nb.members = (data || []).map(m => ({ userId: m.user_id, role: m.role || "editor" }));
   nb.memberCount = 1 + nb.members.length;
+  if(nb.memberCount > 1) nb.isShared = true;
   if(!nb.isOwner){
     const mine = nb.members.find(m => m.userId === currentUser.id);
     nb.myRole = mine ? mine.role : "editor";
@@ -1109,6 +1213,15 @@ async function refreshMembership(nb){
 
 // odświeża tylko kategorie/pozycje jednego notatnika (do realtime i po dołączeniu przez kod)
 async function reloadNotebookData(nb){
+  if(nb.type === "note"){
+    const { data, error } = await sb.from("notebooks").select("note_content").eq("id", nb.id).single();
+    if(error){
+      if(!isMissingTableError(error)) dbErr(error, "Błąd odświeżania notatki");
+      return;
+    }
+    nb.noteContent = data.note_content || "";
+    return;
+  }
   const { data: cats, error: catErr } = await sb.from("categories").select("*").eq("notebook_id", nb.id).order("position");
   if(catErr){ dbErr(catErr, "Błąd odświeżania kategorii"); return; }
   const catIds = (cats || []).map(c => c.id);
@@ -1131,9 +1244,19 @@ async function reloadNotebookData(nb){
   nb.categories = newCategories;
 }
 
-async function dbInsertNotebook({ name, color = null }){
-  const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color }).select().single();
-  if(error){ dbErr(error, "Nie udało się utworzyć notatnika"); return null; }
+async function dbInsertNotebook({ name, color = null, isShared = false, type = "checklist" }){
+  const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color, is_shared: isShared, type }).select().single();
+  if(error){
+    // is_shared/type nie istnieją jeszcze w bazie (migration_005 nie uruchomiona) — spróbuj bez nich,
+    // żeby samo tworzenie notatnika nie było całkiem zablokowane do czasu migracji
+    if(isMissingTableError(error)){
+      const fallback = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color }).select().single();
+      if(fallback.error){ dbErr(fallback.error, "Nie udało się utworzyć notatnika"); return null; }
+      return fallback.data;
+    }
+    dbErr(error, "Nie udało się utworzyć notatnika");
+    return null;
+  }
   return data;
 }
 async function dbUpdateNotebook(id, fields){
@@ -1214,12 +1337,14 @@ async function dbInsertCategoryTree(notebookId, position, c){
   return cat;
 }
 
-async function dbInsertNotebookTree({ name, color = null, categories = [] }){
-  const nbRow = await dbInsertNotebook({ name, color });
+async function dbInsertNotebookTree({ name, color = null, categories = [], isShared = false, type = "checklist", noteContent = "" }){
+  const nbRow = await dbInsertNotebook({ name, color, isShared, type });
   if(!nbRow) return null;
+  if(type === "note" && noteContent) await dbUpdateNotebook(nbRow.id, { note_content: noteContent });
   const nb = {
     id: nbRow.id, name: nbRow.name, color: nbRow.color || "", archived: false,
     isOwner: true, ownerId: currentUser.id, shareCode: nbRow.share_code, updatedAt: Date.now(),
+    isShared, type, noteContent,
     members: [], memberCount: 1, myRole: "owner", categories: []
   };
   for(let ci = 0; ci < categories.length; ci++){
@@ -1241,7 +1366,10 @@ function extractCategoryTree(cat){
 }
 
 function extractNotebookTree(nb){
-  return { name: nb.name, color: nb.color || null, categories: nb.categories.map(extractCategoryTree) };
+  return {
+    name: nb.name, color: nb.color || null, type: nb.type || "checklist", noteContent: nb.noteContent || "",
+    categories: nb.categories.map(extractCategoryTree)
+  };
 }
 
 function getNotebook(id){ return state.notebooks.find(n => n.id === id); }
@@ -1315,7 +1443,10 @@ async function importNotebooksArray(notebooksArr, checkedMap){
         priority: !!it.priority, checked: !!checkedMap[it.id]
       }))
     }));
-    const built = await dbInsertNotebookTree({ name: nb.name, color: nb.color || null, categories });
+    const built = await dbInsertNotebookTree({
+      name: nb.name, color: nb.color || null, categories,
+      type: nb.type || "checklist", noteContent: nb.noteContent || ""
+    });
     if(built){ state.notebooks.push(built); imported++; }
   }
   return imported;
@@ -1399,14 +1530,25 @@ function buildNbCard(nb){
   if(nb.color) card.style.setProperty("--tab-color", nb.color);
   const editedLabel = nb.updatedAt ? `· edytowano ${relativeTime(nb.updatedAt)}` : "";
   const peopleLabelStr = nb.memberCount > 1 ? ` · ${peopleLabel(nb.memberCount)}` : "";
+  const isNote = nb.type === "note";
+  let metaLine, progressBarHtml;
+  if(isNote){
+    const preview = (nb.noteContent || "").replace(/\s+/g, " ").trim();
+    const previewText = preview ? (preview.length > 60 ? preview.slice(0, 60) + "…" : preview) : "Pusta notatka";
+    metaLine = `${previewText}${peopleLabelStr} ${editedLabel}`;
+    progressBarHtml = "";
+  } else {
+    metaLine = `${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione${peopleLabelStr} ${editedLabel}`;
+    progressBarHtml = `<div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>`;
+  }
   card.innerHTML = `
     <label class="nb-tab color-label" title="Kolor notatnika" aria-label="Zmień kolor notatnika ${nb.name}">
       <input type="color" class="color-input" value="${nb.color || '#5ea1ff'}">
     </label>
     <button class="card-menu-btn popover-trigger" title="Więcej opcji" aria-label="Więcej opcji dla notatnika ${nb.name}">⋯</button>
     <div class="nb-name">${nb.name}</div>
-    <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione${peopleLabelStr} ${editedLabel}</div>
-    <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>
+    <div class="nb-meta">${metaLine}</div>
+    ${progressBarHtml}
   `;
   card.addEventListener("click", (e) => {
     if(e.target.closest(".nb-tab") || e.target.closest(".card-menu-btn")) return;
@@ -1511,8 +1653,8 @@ function buildNbCard(nb){
 function renderMenu(){
   const grid = document.getElementById("menuGrid");
   grid.innerHTML = "";
-  const active = state.notebooks.filter(nb => !nb.archived && nb.isOwner);
-  const archived = state.notebooks.filter(nb => nb.archived && nb.isOwner);
+  const active = state.notebooks.filter(nb => !nb.archived && nb.isOwner && !nb.isShared);
+  const archived = state.notebooks.filter(nb => nb.archived && nb.isOwner && !nb.isShared);
 
   active.forEach(nb => grid.appendChild(buildNbCard(nb)));
 
@@ -1523,13 +1665,7 @@ function renderMenu(){
   newCard.setAttribute("aria-label","Utwórz nowy notatnik");
   newCard.innerHTML = `<div class="plus">+</div><div>Nowy notatnik</div>`;
   async function createNb(){
-    const name = await customPrompt("Nazwa nowego notatnika:", "Nowa lista", { title:"Nowy notatnik" });
-    if(!name) return;
-    const templateId = await chooseTemplate();
-    const template = NB_TEMPLATES.find(t => t.id === templateId) || NB_TEMPLATES[0];
-    const built = await dbInsertNotebookTree({
-      name, categories: template.categories.map(c => ({ name: c.name, collapsed:false, items: [] }))
-    });
+    const built = await createNotebookViaFlow("Nazwa nowego notatnika:", "Nowa lista", "Nowy notatnik", false);
     if(!built) return;
     state.notebooks.push(built);
     openNotebook(built.id);
@@ -1640,6 +1776,43 @@ function updateFilterCounts(nb){
   if(elDone) elDone.textContent = `(${done})`;
 }
 
+let noteAutosaveTimer = null;
+let noteContentColumnMissingWarned = false;
+async function saveNoteContent(nb){
+  const { error } = await sb.from("notebooks").update({ note_content: nb.noteContent, updated_at: new Date().toISOString() }).eq("id", nb.id);
+  if(!error) return;
+  if(isMissingTableError(error)){
+    // migration_005 nie została jeszcze uruchomiona — nie spamuj błędem przy każdym zapisie
+    if(!noteContentColumnMissingWarned){
+      noteContentColumnMissingWarned = true;
+      toast("Zapis notatek wymaga uruchomienia migration_005 w Supabase.", "error", null, { persist:true });
+    }
+    return;
+  }
+  dbErr(error, "Nie udało się zapisać notatki");
+}
+function renderNoteEditor(nb, readOnly){
+  const ta = document.getElementById("noteContentInput");
+  // nie nadpisuj tekstu, jeśli użytkownik właśnie w nim pisze (np. odświeżenie z realtime)
+  if(document.activeElement !== ta) ta.value = nb.noteContent || "";
+  ta.disabled = readOnly;
+  ta.oninput = () => {
+    nb.noteContent = ta.value;
+    touchNotebook(nb);
+    if(noteAutosaveTimer) clearTimeout(noteAutosaveTimer);
+    noteAutosaveTimer = setTimeout(() => {
+      saveNoteContent(nb);
+      noteAutosaveTimer = null;
+    }, 600);
+  };
+  ta.onblur = () => {
+    if(!noteAutosaveTimer) return;
+    clearTimeout(noteAutosaveTimer);
+    noteAutosaveTimer = null;
+    saveNoteContent(nb);
+  };
+}
+
 function renderNotebook(){
   const nb = getNotebook(state.activeId);
   if(!nb){ backToMenu(); return; }
@@ -1649,17 +1822,29 @@ function renderNotebook(){
   document.getElementById("nbRoleBadge").classList.toggle("hidden", !readOnly);
   document.getElementById("notebookScreen").classList.toggle("read-only", readOnly);
   document.getElementById("notebookScreen").style.setProperty("--accent", nb.color || "");
-  const pf = document.getElementById("progressFill");
-  if(nb.color){ pf.style.background = nb.color; pf.style.animation = "none"; }
-  else { pf.style.background = ""; pf.style.animation = ""; }
   document.getElementById("utmNote").classList.toggle("hidden", !nb.isUtm);
   document.getElementById("archiveNbBtn").classList.toggle("hidden", !nb.isOwner);
   document.getElementById("deleteNbBtn").classList.toggle("hidden", !nb.isOwner);
-  document.getElementById("resetAll").classList.toggle("hidden", readOnly);
-  document.getElementById("deleteCheckedBtn").classList.toggle("hidden", readOnly);
-  document.getElementById("expandAll").classList.toggle("hidden", readOnly);
-  document.getElementById("collapseAll").classList.toggle("hidden", readOnly);
   document.getElementById("moreActionsBtn").classList.remove("hidden");
+
+  const isNote = nb.type === "note";
+  document.getElementById("checklistBody").classList.toggle("hidden", isNote);
+  document.getElementById("noteEditorWrap").classList.toggle("hidden", !isNote);
+  document.querySelector("#nbTopBar .progress-bar").classList.toggle("hidden", isNote);
+  document.getElementById("progressLabel").classList.toggle("hidden", isNote);
+  document.getElementById("resetAll").classList.toggle("hidden", readOnly || isNote);
+  document.getElementById("deleteCheckedBtn").classList.toggle("hidden", readOnly || isNote);
+  document.getElementById("expandAll").classList.toggle("hidden", readOnly || isNote);
+  document.getElementById("collapseAll").classList.toggle("hidden", readOnly || isNote);
+
+  if(isNote){
+    renderNoteEditor(nb, readOnly);
+    return;
+  }
+
+  const pf = document.getElementById("progressFill");
+  if(nb.color){ pf.style.background = nb.color; pf.style.animation = "none"; }
+  else { pf.style.background = ""; pf.style.animation = ""; }
   updateFilterCounts(nb);
 
   const root = document.getElementById("categories");
@@ -2067,7 +2252,7 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
   e.target.value = ""; // to jest akcja jednorazowa, nie tryb stały
   if(!mode) return;
   const nb = getNotebook(state.activeId);
-  if(!nb || nb.myRole === "viewer") return;
+  if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   const snapshot = nb.categories.map(cat => ({ id: cat.id, items: cat.items.slice() }));
   nb.categories.forEach(cat => {
     if(mode === "az"){
@@ -2096,7 +2281,7 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
 
 document.getElementById("addCatBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
-  if(!nb || nb.myRole === "viewer") return;
+  if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   const input = document.getElementById("newCatInput");
   const name = input.value.trim();
   if(!name) return;
@@ -2111,14 +2296,14 @@ document.getElementById("newCatInput").addEventListener("keydown", e => { if(e.k
 
 document.getElementById("expandAll").onclick = () => {
   const nb = getNotebook(state.activeId);
-  if(!nb || nb.myRole === "viewer") return;
+  if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   nb.categories.forEach(c => c.collapsed = false);
   document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
   dbBulkSetCategoriesCollapsed(nb, false);
 };
 document.getElementById("collapseAll").onclick = () => {
   const nb = getNotebook(state.activeId);
-  if(!nb || nb.myRole === "viewer") return;
+  if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   nb.categories.forEach(c => c.collapsed = true);
   document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
   dbBulkSetCategoriesCollapsed(nb, true);
@@ -2146,7 +2331,7 @@ document.getElementById("membersBtn").onclick = () => {
 
 document.getElementById("resetAll").onclick = async () => {
   const nb = getNotebook(state.activeId);
-  if(!nb || nb.myRole === "viewer") return;
+  if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   const ok = await customConfirm("Wyczyścić wszystkie zaznaczenia w tym notatniku? (pozycje zostaną)", { title:"Wyczyścić zaznaczenia?", okLabel:"Wyczyść" });
   if(!ok) return;
   const allIds = [];
@@ -2156,7 +2341,7 @@ document.getElementById("resetAll").onclick = async () => {
 };
 document.getElementById("deleteCheckedBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
-  if(!nb || nb.myRole === "viewer") return;
+  if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   let count = 0;
   nb.categories.forEach(cat => cat.items.forEach(it => { if(state.checked[it.id]) count++; }));
   if(count === 0){ toast("Nie masz żadnych zaznaczonych pozycji."); return; }
@@ -2333,6 +2518,7 @@ async function showInviteFriendDialog(nb){
         const { error } = await sb.rpc("invite_friend_to_notebook", { nb_id: nb.id, friend_id: f.userId });
         if(error){ dbErr(error, "Nie udało się zaprosić"); btn.disabled = false; return; }
         btn.textContent = "Zaproszono";
+        if(!nb.isShared){ nb.isShared = true; refreshListScreens(); }
         toast(`Wysłano zaproszenie do ${(f.profile && f.profile.username) || "znajomego"}.`, "success");
       };
     }
@@ -2425,11 +2611,15 @@ function extractJoinCode(input){
 async function joinNotebookByCode(code){
   if(!code) return;
   try{
+    const { data: nbName, error: lookupErr } = await sb.rpc("get_notebook_name_by_code", { code });
+    if(lookupErr || !nbName) throw lookupErr || new Error("not found");
+    const ok = await customConfirm(`Dołączyć do notatnika „${nbName}”?`, { title:"Dołączyć do notatnika?", okLabel:"Dołącz" });
+    if(!ok) return;
     const { error } = await sb.rpc("join_notebook", { code });
     if(error) throw error;
     await loadFromServer();
     refreshListScreens();
-    toast("Dołączono do notatnika.", "success");
+    toast(`Dołączono do „${nbName}”.`, "success");
   }catch(err){
     toast("Nie udało się dołączyć — sprawdź kod lub link zaproszenia.", "error");
   }
@@ -2832,7 +3022,7 @@ function renderShared(){
 
   const grid = document.getElementById("sharedGrid");
   grid.innerHTML = "";
-  const shared = state.notebooks.filter(nb => !nb.archived && !nb.isOwner);
+  const shared = state.notebooks.filter(nb => !nb.archived && (!nb.isOwner || nb.isShared));
   shared.forEach(nb => grid.appendChild(buildNbCard(nb)));
 
   const newCard = document.createElement("div");
@@ -2842,16 +3032,11 @@ function renderShared(){
   newCard.setAttribute("aria-label","Utwórz nowy wspólny notatnik");
   newCard.innerHTML = `<div class="plus">+</div><div>Nowy wspólny notatnik</div>`;
   async function createSharedNb(){
-    const name = await customPrompt("Nazwa nowego wspólnego notatnika:", "Nowa wspólna lista", { title:"Nowy wspólny notatnik" });
-    if(!name) return;
-    const templateId = await chooseTemplate();
-    const template = NB_TEMPLATES.find(t => t.id === templateId) || NB_TEMPLATES[0];
-    const built = await dbInsertNotebookTree({
-      name, categories: template.categories.map(c => ({ name: c.name, collapsed:false, items: [] }))
-    });
+    const built = await createNotebookViaFlow("Nazwa nowego wspólnego notatnika:", "Nowa wspólna lista", "Nowy wspólny notatnik", true);
     if(!built) return;
     state.notebooks.push(built);
     toast(`Utworzono „${built.name}”.`, "success");
+    renderShared();
     showInviteFriendDialog(built);
   }
   newCard.addEventListener("click", createSharedNb);
