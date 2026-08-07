@@ -1308,6 +1308,7 @@ async function reloadNotebookData(nb){
 }
 
 async function dbInsertNotebook({ name, color = null, isShared = false, type = "checklist" }){
+  lastLocalMutationAt = Date.now();
   const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color, is_shared: isShared, type }).select().single();
   if(error){
     // is_shared/type nie istnieją jeszcze w bazie (migration_005 nie uruchomiona) — spróbuj bez nich,
@@ -1437,7 +1438,14 @@ function extractNotebookTree(nb){
 
 function getNotebook(id){ return state.notebooks.find(n => n.id === id); }
 
-function touchNotebook(nb){ if(nb) nb.updatedAt = Date.now(); }
+// Supabase Realtime powiadamia też klienta, który sam wykonał zapis — bez tego każda
+// własna akcja (dodanie pozycji, zaznaczenie, zmiana nazwy...) wywołuje echo, które
+// przeładowuje i przerysowuje cały notatnik/siatkę od zera (widoczne miganie/skakanie ekranu)
+let lastLocalMutationAt = 0;
+function touchNotebook(nb){
+  lastLocalMutationAt = Date.now();
+  if(nb) nb.updatedAt = Date.now();
+}
 
 function relativeTime(ts){
   if(!ts) return "";
@@ -1955,6 +1963,7 @@ function renderNotebook(){
       if(e.target.closest(".card-menu-btn") || e.target.closest(".drag-handle")) return;
       cat.collapsed = !cat.collapsed;
       catEl.classList.toggle("collapsed", cat.collapsed);
+      touchNotebook(nb);
       dbUpdateCategory(cat.id, { collapsed: cat.collapsed });
     });
 
@@ -2088,6 +2097,7 @@ function renderNotebook(){
           row.addEventListener("animationend", () => {
             cat.items = cat.items.filter(x => x.id !== it.id);
             delete state.checked[it.id];
+            touchNotebook(nb);
             dbDeleteItem(it.id);
             renderItems(); updateProgress(); refreshCount();
             toast(`Usunięto „${it.text}”.`, "", async () => {
@@ -2099,6 +2109,7 @@ function renderNotebook(){
               if(!row2) return;
               cat.items.splice(restoredIdx, 0, { id: row2.id, text: row2.text, note: row2.note, qty: row2.qty, priority: row2.priority });
               if(wasChecked) state.checked[row2.id] = true;
+              touchNotebook(nb);
               await dbReorderItems(cat);
               renderItems(); updateProgress(); refreshCount();
             });
@@ -2181,6 +2192,7 @@ function renderNotebook(){
           cat.items.forEach((it2, idx) => { if(newIdOrder.includes(it2.id)) positions.push(idx); });
           const newOrderedItems = newIdOrder.map(id => idToItem[id]);
           positions.forEach((pos, i) => { cat.items[pos] = newOrderedItems[i]; });
+          touchNotebook(nb);
           dbReorderItems(cat);
         });
       }
@@ -2235,6 +2247,7 @@ function renderNotebook(){
       const idToCat = {};
       currentNb.categories.forEach(c => idToCat[c.id] = c);
       currentNb.categories = newIdOrder.map(id => idToCat[id]).filter(Boolean);
+      touchNotebook(currentNb);
       dbReorderCategories(currentNb);
     });
   }
@@ -2395,6 +2408,7 @@ document.getElementById("expandAll").onclick = () => {
   if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   nb.categories.forEach(c => c.collapsed = false);
   document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
+  touchNotebook(nb);
   dbBulkSetCategoriesCollapsed(nb, false);
 };
 document.getElementById("collapseAll").onclick = () => {
@@ -2402,6 +2416,7 @@ document.getElementById("collapseAll").onclick = () => {
   if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
   nb.categories.forEach(c => c.collapsed = true);
   document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
+  touchNotebook(nb);
   dbBulkSetCategoriesCollapsed(nb, true);
 };
 
@@ -2432,6 +2447,7 @@ document.getElementById("resetAll").onclick = async () => {
   if(!ok) return;
   const allIds = [];
   nb.categories.forEach(cat => cat.items.forEach(it => { delete state.checked[it.id]; allIds.push(it.id); }));
+  touchNotebook(nb);
   dbBulkSetChecked(allIds, false);
   renderNotebook();
 };
@@ -2668,6 +2684,7 @@ async function showMembersDialog(nb){
         const newRole = select.value;
         const { error: roleErr } = await sb.from("notebook_members").update({ role: newRole }).eq("notebook_id", nb.id).eq("user_id", m.userId);
         if(roleErr){ dbErr(roleErr, "Nie udało się zmienić roli"); select.value = m.role; return; }
+        touchNotebook(nb);
         m.role = newRole;
         const sub = nameEl.querySelector(".sub");
         if(sub) sub.textContent = ROLE_LABELS[newRole];
@@ -2682,6 +2699,7 @@ async function showMembersDialog(nb){
         if(!ok) return;
         const { error: delErr } = await sb.from("notebook_members").delete().eq("notebook_id", nb.id).eq("user_id", m.userId);
         if(delErr){ dbErr(delErr, "Nie udało się usunąć członka"); return; }
+        touchNotebook(nb);
         nb.members = nb.members.filter(x => x.userId !== m.userId);
         nb.memberCount = 1 + nb.members.length;
         refreshListScreens();
@@ -3153,8 +3171,10 @@ function subscribeToNotebook(nb){
     .on("postgres_changes", { event:"*", schema:"public", table:"notebook_members", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
     .subscribe();
 }
+const ECHO_SUPPRESS_MS = 1500;
 let refreshPending = false;
 async function refreshActiveNotebook(){
+  if(Date.now() - lastLocalMutationAt < ECHO_SUPPRESS_MS) return; // to najpewniej echo naszego własnego zapisu
   const nb = getNotebook(state.activeId);
   if(!nb || refreshPending) return;
   refreshPending = true;
@@ -3178,6 +3198,7 @@ function subscribeGlobal(){
 let topLevelRefreshPending = false;
 async function refreshTopLevel(){
   if(state.activeId || topLevelRefreshPending) return;
+  if(Date.now() - lastLocalMutationAt < ECHO_SUPPRESS_MS) return; // to najpewniej echo naszego własnego zapisu
   topLevelRefreshPending = true;
   await loadFromServer();
   if(currentTab === "mine") renderMenu();
