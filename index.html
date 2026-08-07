@@ -174,9 +174,10 @@
     color:var(--text); padding:10px 12px; font-size:14px; transition:border-color .15s ease;
   }
   .search-input:focus{outline:none; border-color:var(--accent);}
+  .note-label-row{display:flex; align-items:center; justify-content:space-between; margin:0 0 10px;}
   .note-label{
     display:block; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--muted);
-    text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;
+    text-transform:uppercase; letter-spacing:.04em; margin:0;
   }
   .note-textarea{
     display:block; width:100%; min-height:60vh; resize:vertical; background:var(--card);
@@ -293,6 +294,8 @@
   .action-btn:hover{color:var(--accent); background:var(--accent-soft);}
   .action-btn:active{transform:scale(.92);}
   .action-btn.del-btn:hover{color:var(--danger); background:var(--danger-soft);}
+  .mic-btn.active{color:#e14848; background:var(--danger-soft); animation:mic-pulse 1.1s ease-in-out infinite;}
+  @keyframes mic-pulse{0%,100%{opacity:1;} 50%{opacity:.5;}}
 
   /* na dotyku / bez hovera: akcje zawsze widoczne */
   @media (hover:none){
@@ -311,6 +314,7 @@
   }
   .add-row input[type=text]:focus{outline:none; border-color:var(--accent);}
   .add-row button{padding:8px 14px; font-size:13px; min-height:38px;}
+  .add-row .mic-btn{padding:8px; min-width:38px; flex-shrink:0;}
   .add-cat-row{display:flex; gap:8px; margin-bottom:20px;}
   .add-cat-row input[type=text]{
     flex:1; background:var(--card); border:1px solid var(--border); border-radius:8px;
@@ -694,7 +698,10 @@
   </div>
 
   <div id="noteEditorWrap" class="hidden">
-    <label class="note-label" for="noteContentInput">Treść notatki</label>
+    <div class="note-label-row">
+      <label class="note-label" for="noteContentInput">Treść notatki</label>
+      <button id="noteVoiceBtn" class="action-btn mic-btn" type="button" title="Dyktuj tekst" aria-label="Dyktuj notatkę głosem"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+    </div>
     <textarea id="noteContentInput" class="note-textarea" placeholder="Zacznij pisać..."></textarea>
   </div>
 </div>
@@ -819,6 +826,45 @@ const USER_PLUS_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke=
 const USER_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 const EXPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 const IMPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
+const MIC_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+
+// dyktowanie głosowe (Web Speech API) — działa w Chrome/Edge/Safari, brak wsparcia w Firefoksie,
+// więc przycisk chowamy zamiast pokazywać coś, co i tak nie zadziała
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+function attachVoiceDictation(button, { continuous = false, onResult } = {}){
+  if(!SpeechRecognitionCtor){ button.classList.add("hidden"); return; }
+  let recognition = null;
+  let listening = false;
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if(listening){ recognition.stop(); return; }
+    recognition = new SpeechRecognitionCtor();
+    recognition.lang = "pl-PL";
+    recognition.continuous = continuous;
+    recognition.interimResults = false;
+    recognition.onstart = () => { listening = true; button.classList.add("active"); };
+    recognition.onend = () => { listening = false; button.classList.remove("active"); };
+    recognition.onerror = (ev) => {
+      listening = false;
+      button.classList.remove("active");
+      if(ev.error === "not-allowed" || ev.error === "service-not-allowed"){
+        toast("Brak dostępu do mikrofonu — sprawdź uprawnienia przeglądarki.", "error");
+      } else if(ev.error !== "no-speech" && ev.error !== "aborted"){
+        toast("Błąd rozpoznawania mowy.", "error");
+      }
+    };
+    recognition.onresult = (ev) => {
+      let transcript = "";
+      for(let i = ev.resultIndex; i < ev.results.length; i++){
+        if(ev.results[i].isFinal) transcript += ev.results[i][0].transcript;
+      }
+      transcript = transcript.trim();
+      if(transcript) onResult(transcript);
+    };
+    try{ recognition.start(); }catch(err){ listening = false; button.classList.remove("active"); }
+  });
+}
 function applyTheme(theme){
   document.body.classList.toggle("light-theme", theme === "light");
   const icon = theme === "light" ? SUN_SVG : MOON_SVG;
@@ -1816,6 +1862,24 @@ function renderNoteEditor(nb, readOnly){
     noteAutosaveTimer = null;
     saveNoteContent(nb);
   };
+
+  const voiceBtn = document.getElementById("noteVoiceBtn");
+  if(!SpeechRecognitionCtor){
+    voiceBtn.classList.add("hidden");
+  } else {
+    voiceBtn.classList.toggle("hidden", readOnly);
+    if(!voiceBtn.dataset.voiceAttached){
+      voiceBtn.dataset.voiceAttached = "1";
+      attachVoiceDictation(voiceBtn, {
+        continuous: true,
+        onResult: (text) => {
+          const sep = ta.value && !/\s$/.test(ta.value) ? " " : "";
+          ta.value = ta.value + sep + text;
+          ta.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+    }
+  }
 }
 
 function renderNotebook(){
@@ -2125,7 +2189,17 @@ function renderNotebook(){
     }
     addBtn.onclick = addItem;
     input.addEventListener("keydown", e => { if(e.key === "Enter") addItem(); });
-    addRow.appendChild(input); addRow.appendChild(addBtn);
+    const voiceBtn = document.createElement("button");
+    voiceBtn.type = "button";
+    voiceBtn.className = "action-btn mic-btn";
+    voiceBtn.title = "Dyktuj pozycję";
+    voiceBtn.setAttribute("aria-label", `Dyktuj pozycję do kategorii ${cat.name}`);
+    voiceBtn.innerHTML = MIC_SVG;
+    attachVoiceDictation(voiceBtn, {
+      continuous: false,
+      onResult: (text) => { input.value = text; input.focus(); }
+    });
+    addRow.appendChild(input); addRow.appendChild(voiceBtn); addRow.appendChild(addBtn);
     itemsInner.appendChild(addRow);
 
     renderItems();

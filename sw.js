@@ -1,4 +1,4 @@
-const CACHE_NAME = "notatnik-cache-v11";
+const CACHE_NAME = "notatnik-cache-v12";
 const ASSETS = [
   "./index.html",
   "./manifest.json",
