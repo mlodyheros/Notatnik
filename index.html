@@ -174,6 +174,10 @@
     color:var(--text); padding:10px 12px; font-size:14px; transition:border-color .15s ease;
   }
   .search-input:focus{outline:none; border-color:var(--accent);}
+  .note-label{
+    display:block; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;
+  }
   .note-textarea{
     display:block; width:100%; min-height:60vh; resize:vertical; background:var(--card);
     border:1px solid var(--border-soft); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);
@@ -393,9 +397,9 @@
   .dlg-actions{display:flex; justify-content:flex-end; gap:8px;}
   .template-list{display:flex; flex-direction:column; gap:8px; margin-bottom:16px;}
   .template-option{
-    display:flex; align-items:center; gap:12px; text-align:left; background:var(--input-bg);
+    display:flex; align-items:center; justify-content:flex-start; gap:12px; text-align:left; background:var(--input-bg);
     border:1px solid var(--border); border-radius:var(--radius-md); padding:12px 14px; cursor:pointer;
-    color:var(--text); font-size:13.5px; transition:border-color .15s ease, background-color .15s ease, transform .1s ease;
+    color:var(--text); font-size:13.5px; transition:border-color .15s ease, background-color .15s ease, transform .1s ease; width:100%;
   }
   .template-option:active{transform:scale(.98);}
   .template-option:hover{border-color:var(--accent); background:var(--accent-soft);}
@@ -690,6 +694,7 @@
   </div>
 
   <div id="noteEditorWrap" class="hidden">
+    <label class="note-label" for="noteContentInput">Treść notatki</label>
     <textarea id="noteContentInput" class="note-textarea" placeholder="Zacznij pisać..."></textarea>
   </div>
 </div>
@@ -742,7 +747,7 @@
     <div class="template-list" id="notebookTypeList">
       <button class="template-option" data-type="note">
         <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
-        <span><span class="t-name">Zwykła notatka</span><br><span class="t-desc">Puste pole do pisania, bez kategorii — jak notatnik w telefonie.</span></span>
+        <span><span class="t-name">Notatnik</span><br><span class="t-desc">Puste pole do pisania, bez kategorii — jak notatnik w telefonie.</span></span>
       </button>
       <button class="template-option" data-type="checklist">
         <span class="t-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
