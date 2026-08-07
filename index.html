@@ -508,6 +508,7 @@
         <div class="sub">Wybierz listę albo stwórz nową.</div>
       </div>
       <div class="menu-top-actions">
+        <button id="menuOptionsBtn" class="theme-toggle popover-trigger" title="Więcej opcji" aria-label="Więcej opcji: eksport i import">⋯</button>
         <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
       </div>
     </div>
@@ -565,6 +566,11 @@
       </div>
       <div class="sub" id="profileEmailLabel" style="margin-bottom:0;"></div>
     </div>
+  </div>
+
+  <div id="notebookInvitesSection" class="hidden">
+    <div class="section-heading">Zaproszenia do notatników</div>
+    <div id="notebookInvitesList" class="friend-list"></div>
   </div>
 
   <div class="section-heading">Dodaj znajomego</div>
@@ -647,11 +653,9 @@
   <div id="categories"></div>
 </div>
 
-<div class="footer-bar hidden">
-  <button id="exportBtn" aria-label="Eksportuj wszystkie notatniki do pliku JSON"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Eksport</button>
-  <button id="importBtn" aria-label="Importuj notatniki z pliku JSON"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import</button>
-  <input type="file" id="importFile" accept="application/json" class="hidden">
+<input type="file" id="importFile" accept="application/json" class="hidden">
 
+<div class="footer-bar hidden">
   <button id="expandAll" class="hidden">Rozwiń</button>
   <button id="collapseAll" class="hidden">Zwiń</button>
   <button id="moreActionsBtn" class="hidden popover-trigger">⋯ Więcej</button>
@@ -699,6 +703,16 @@
   </div>
 </dialog>
 
+<dialog id="inviteFriendDialog">
+  <div class="dlg-body">
+    <div class="dlg-title" id="inviteFriendTitle">Zaproś znajomego</div>
+    <div class="friend-list" id="inviteFriendList" style="max-height:55vh; overflow-y:auto;"></div>
+    <div class="dlg-actions">
+      <button id="inviteFriendCloseBtn">Zamknij</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
 /* ======================= SUPABASE ======================= */
 const SUPABASE_URL = "https://uvomhopvxsucnywuwnao.supabase.co";
@@ -714,6 +728,8 @@ const STAR_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="curr
 const LINK_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
 const USER_PLUS_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`;
 const USER_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+const EXPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+const IMPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
 function applyTheme(theme){
   document.body.classList.toggle("light-theme", theme === "light");
   const icon = theme === "light" ? SUN_SVG : MOON_SVG;
@@ -1165,7 +1181,7 @@ function nbStats(nb){
 }
 
 /* ======================= EKSPORT / IMPORT ======================= */
-document.getElementById("exportBtn").onclick = () => {
+function doExport(){
   const data = JSON.stringify(state, null, 2);
   const blob = new Blob([data], { type:"application/json" });
   const url = URL.createObjectURL(blob);
@@ -1175,7 +1191,15 @@ document.getElementById("exportBtn").onclick = () => {
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
   toast("Wyeksportowano plik JSON — możesz go wysłać komuś lub zaimportować na innym urządzeniu.", "success");
-};
+}
+
+document.getElementById("menuOptionsBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  openMenu(e.currentTarget, [
+    { label:"Eksport", icon: EXPORT_SVG, onClick: doExport },
+    { label:"Import", icon: IMPORT_SVG, onClick: () => document.getElementById("importFile").click() }
+  ]);
+});
 
 // wstawia listę notatników (z eksportu JSON albo z lokalnych danych sprzed logowania) na konto użytkownika
 async function importNotebooksArray(notebooksArr, checkedMap){
@@ -1195,7 +1219,6 @@ async function importNotebooksArray(notebooksArr, checkedMap){
   return imported;
 }
 
-document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
 document.getElementById("importFile").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   e.target.value = "";
@@ -1327,18 +1350,7 @@ function buildNbCard(nb){
     if(nb.isOwner){
       items.push(
         { label:"Udostępnij", icon: LINK_SVG, onClick: () => showShareDialog(nb) },
-        { label:"Zaproś znajomego", icon: USER_PLUS_SVG, onClick: async () => {
-          const { friends } = await loadFriendsData();
-          if(!friends.length){ toast("Nie masz jeszcze znajomych — dodaj ich w zakładce Profil.", "error"); return; }
-          openMenu(e.currentTarget, friends.map(f => ({
-            label: (f.profile && f.profile.username) || "Użytkownik",
-            onClick: async () => {
-              const { error } = await sb.rpc("invite_friend_to_notebook", { nb_id: nb.id, friend_id: f.userId });
-              if(error){ dbErr(error, "Nie udało się zaprosić"); return; }
-              toast(`Zaproszono ${(f.profile && f.profile.username) || "znajomego"} do „${nb.name}”.`, "success");
-            }
-          })));
-        }},
+        { label:"Zaproś znajomego", icon: USER_PLUS_SVG, onClick: () => showInviteFriendDialog(nb) },
         { label: (nb.archived ? "Przywróć z archiwum" : "Archiwizuj"), icon: ARCHIVE_SVG, onClick: () => {
           nb.archived = !nb.archived;
           touchNotebook(nb);
@@ -1443,7 +1455,6 @@ async function openNotebook(id){
   document.getElementById("profileScreen").classList.add("hidden");
   document.getElementById("notebookScreen").classList.remove("hidden");
   hideTabBar();
-  ["exportBtn","importBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
   ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
   renderNotebook();
   subscribeToNotebook(getNotebook(id));
@@ -1462,7 +1473,6 @@ function backToMenu(){
   document.getElementById("notebookScreen").classList.add("hidden");
   showTabBar();
   ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.add("hidden"));
-  ["exportBtn","importBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
   showTab(returnTab);
 }
 
@@ -2161,6 +2171,50 @@ async function showShareDialog(nb){
   }
 }
 
+async function showInviteFriendDialog(nb){
+  const dlg = document.getElementById("inviteFriendDialog");
+  const list = document.getElementById("inviteFriendList");
+  document.getElementById("inviteFriendTitle").textContent = `Zaproś znajomego do „${nb.name}”`;
+  list.innerHTML = `<div class="sub">Wczytywanie...</div>`;
+  dlg.showModal();
+
+  const { friends } = await loadFriendsData();
+  if(!friends.length){
+    list.innerHTML = `<div class="sub">Nie masz jeszcze znajomych — dodaj ich w zakładce Profil.</div>`;
+    return;
+  }
+  const [{ data: members }, { data: pending }] = await Promise.all([
+    sb.from("notebook_members").select("user_id").eq("notebook_id", nb.id),
+    sb.from("notebook_invites").select("to_user_id").eq("notebook_id", nb.id)
+  ]);
+  const memberIds = new Set((members || []).map(m => m.user_id));
+  const pendingIds = new Set((pending || []).map(p => p.to_user_id));
+
+  list.innerHTML = "";
+  friends.forEach(f => {
+    const row = buildFriendRow(f.profile, "");
+    const btn = document.createElement("button");
+    if(memberIds.has(f.userId)){
+      btn.textContent = "Już w notatniku"; btn.disabled = true;
+    } else if(pendingIds.has(f.userId)){
+      btn.textContent = "Zaproszono"; btn.disabled = true;
+    } else {
+      btn.className = "primary";
+      btn.textContent = "Zaproś";
+      btn.onclick = async () => {
+        btn.disabled = true;
+        const { error } = await sb.rpc("invite_friend_to_notebook", { nb_id: nb.id, friend_id: f.userId });
+        if(error){ dbErr(error, "Nie udało się zaprosić"); btn.disabled = false; return; }
+        btn.textContent = "Zaproszono";
+        toast(`Wysłano zaproszenie do ${(f.profile && f.profile.username) || "znajomego"}.`, "success");
+      };
+    }
+    row.querySelector(".friend-actions").appendChild(btn);
+    list.appendChild(row);
+  });
+}
+document.getElementById("inviteFriendCloseBtn").addEventListener("click", () => document.getElementById("inviteFriendDialog").close());
+
 function extractJoinCode(input){
   input = input.trim();
   try{
@@ -2208,8 +2262,6 @@ function showTab(tab){
   document.getElementById("sharedScreen").classList.toggle("hidden", tab !== "shared");
   document.getElementById("profileScreen").classList.toggle("hidden", tab !== "profile");
   document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
-  document.getElementById("exportBtn").classList.toggle("hidden", tab !== "mine");
-  document.getElementById("importBtn").classList.toggle("hidden", tab !== "mine");
   if(tab === "mine") renderMenu();
   else if(tab === "shared") renderShared();
   else if(tab === "profile") renderProfile();
@@ -2336,6 +2388,50 @@ async function renderProfile(){
   document.getElementById("usernameInput").value = (currentProfile && currentProfile.username) || "";
   document.getElementById("profileEmailLabel").textContent = currentUser.email;
   document.getElementById("friendSearchResults").innerHTML = "";
+
+  const nbInvitesSection = document.getElementById("notebookInvitesSection");
+  const nbInvitesList = document.getElementById("notebookInvitesList");
+  nbInvitesList.innerHTML = "";
+  const { data: nbInvites, error: nbInvitesErr } = await sb.from("notebook_invites").select("*").eq("to_user_id", currentUser.id);
+  if(nbInvitesErr){ dbErr(nbInvitesErr, "Błąd wczytywania zaproszeń do notatników"); }
+  const invites = nbInvites || [];
+  nbInvitesSection.classList.toggle("hidden", invites.length === 0);
+  if(invites.length){
+    const fromIds = [...new Set(invites.map(i => i.from_user_id))];
+    const { data: fromProfiles } = await sb.from("profiles").select("id,username").in("id", fromIds);
+    const fromById = {};
+    (fromProfiles || []).forEach(p => fromById[p.id] = p);
+    invites.forEach(inv => {
+      const fromName = (fromById[inv.from_user_id] && fromById[inv.from_user_id].username) || "znajomego";
+      const row = document.createElement("div");
+      row.className = "friend-row";
+      row.innerHTML = `
+        <div class="friend-name">${inv.notebook_name}<div class="sub" style="margin:2px 0 0;">zaproszenie od ${fromName}</div></div>
+        <div class="friend-actions"></div>
+      `;
+      const acceptBtn = document.createElement("button");
+      acceptBtn.className = "primary";
+      acceptBtn.textContent = "Dołącz";
+      acceptBtn.onclick = async () => {
+        const { error } = await sb.rpc("accept_notebook_invite", { invite_id: inv.id });
+        if(error){ dbErr(error, "Nie udało się dołączyć"); return; }
+        toast(`Dołączono do „${inv.notebook_name}”.`, "success");
+        await loadFromServer();
+        renderProfile();
+      };
+      const rejectBtn = document.createElement("button");
+      rejectBtn.className = "action-btn del-btn";
+      rejectBtn.textContent = "✕";
+      rejectBtn.title = "Odrzuć";
+      rejectBtn.onclick = async () => {
+        const { error } = await sb.from("notebook_invites").delete().eq("id", inv.id);
+        if(error){ dbErr(error, "Nie udało się odrzucić"); return; }
+        renderProfile();
+      };
+      row.querySelector(".friend-actions").append(acceptBtn, rejectBtn);
+      nbInvitesList.appendChild(row);
+    });
+  }
 
   const { friends, incoming } = await loadFriendsData();
 
