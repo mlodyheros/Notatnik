@@ -829,20 +829,25 @@ const IMPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="cu
 const MIC_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
 
 // dyktowanie głosowe (Web Speech API) — działa w Chrome/Edge/Safari, brak wsparcia w Firefoksie,
-// więc przycisk chowamy zamiast pokazywać coś, co i tak nie zadziała
+// więc przycisk chowamy zamiast pokazywać coś, co i tak nie zadziała.
+// interimResults zawsze włączone: bez tego krótkie, pojedyncze wypowiedzi (np. jedna pozycja
+// listy) czasem w ogóle nie doczekują się wyniku "final" w trybie continuous:false — silent fail.
 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-function attachVoiceDictation(button, { continuous = false, onResult } = {}){
+function attachVoiceDictation(button, { continuous = false, autoStopOnFinal = false, onSessionStart, onSessionResult } = {}){
   if(!SpeechRecognitionCtor){ button.classList.add("hidden"); return; }
   let recognition = null;
   let listening = false;
+  let finalizedText = "";
   button.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     if(listening){ recognition.stop(); return; }
+    finalizedText = "";
+    if(onSessionStart) onSessionStart();
     recognition = new SpeechRecognitionCtor();
     recognition.lang = "pl-PL";
     recognition.continuous = continuous;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.onstart = () => { listening = true; button.classList.add("active"); };
     recognition.onend = () => { listening = false; button.classList.remove("active"); };
     recognition.onerror = (ev) => {
@@ -855,12 +860,19 @@ function attachVoiceDictation(button, { continuous = false, onResult } = {}){
       }
     };
     recognition.onresult = (ev) => {
-      let transcript = "";
+      let interim = "", gotFinal = false;
       for(let i = ev.resultIndex; i < ev.results.length; i++){
-        if(ev.results[i].isFinal) transcript += ev.results[i][0].transcript;
+        const chunk = ev.results[i][0].transcript;
+        if(ev.results[i].isFinal){
+          finalizedText = finalizedText && !/\s$/.test(finalizedText) ? `${finalizedText} ${chunk.trim()}` : finalizedText + chunk.trim();
+          gotFinal = true;
+        } else {
+          interim += chunk;
+        }
       }
-      transcript = transcript.trim();
-      if(transcript) onResult(transcript);
+      const sessionText = interim.trim() ? `${finalizedText} ${interim.trim()}`.trim() : finalizedText;
+      onSessionResult(sessionText);
+      if(gotFinal && autoStopOnFinal) recognition.stop();
     };
     try{ recognition.start(); }catch(err){ listening = false; button.classList.remove("active"); }
   });
@@ -1870,11 +1882,15 @@ function renderNoteEditor(nb, readOnly){
     voiceBtn.classList.toggle("hidden", readOnly);
     if(!voiceBtn.dataset.voiceAttached){
       voiceBtn.dataset.voiceAttached = "1";
+      let noteDictationBase = "";
       attachVoiceDictation(voiceBtn, {
         continuous: true,
-        onResult: (text) => {
-          const sep = ta.value && !/\s$/.test(ta.value) ? " " : "";
-          ta.value = ta.value + sep + text;
+        onSessionStart: () => {
+          // każde nowe kliknięcie mikrofonu = nowy "akapit", żeby kolejne dyktowania się nie zlewały
+          noteDictationBase = ta.value && !ta.value.endsWith("\n") ? ta.value + "\n" : ta.value;
+        },
+        onSessionResult: (sessionText) => {
+          ta.value = noteDictationBase + sessionText;
           ta.dispatchEvent(new Event("input", { bubbles: true }));
         }
       });
@@ -2196,8 +2212,9 @@ function renderNotebook(){
     voiceBtn.setAttribute("aria-label", `Dyktuj pozycję do kategorii ${cat.name}`);
     voiceBtn.innerHTML = MIC_SVG;
     attachVoiceDictation(voiceBtn, {
-      continuous: false,
-      onResult: (text) => { input.value = text; input.focus(); }
+      continuous: true,
+      autoStopOnFinal: true,
+      onSessionResult: (sessionText) => { input.value = sessionText; input.focus(); }
     });
     addRow.appendChild(input); addRow.appendChild(voiceBtn); addRow.appendChild(addBtn);
     itemsInner.appendChild(addRow);
