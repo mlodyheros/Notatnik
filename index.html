@@ -87,6 +87,18 @@
   .menu-grid{
     display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:16px; margin-top:8px;
   }
+  /* na szerokich ekranach szkoda marnować miejsce na wąską kolumnę pośrodku — poszerz ekrany
+     z siatką kafelków notatników znacznie bardziej niż ekran pojedynczego notatnika (tam długie
+     linie tekstu/checklisty są mniej czytelne przy pełnej szerokości) */
+  @media (min-width:1000px){
+    #menuScreen, #sharedScreen{ max-width:1400px; }
+    #notebookScreen, #profileScreen{ max-width:900px; }
+    .menu-grid{ grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:20px; }
+  }
+  @media (min-width:1500px){
+    #menuScreen, #sharedScreen{ max-width:1720px; }
+    .menu-grid{ grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:22px; }
+  }
   .nb-card{
     background:var(--card); border:1px solid var(--border-soft); border-radius:0 var(--radius-md) var(--radius-md) var(--radius-md);
     padding:20px 18px 18px; cursor:pointer; position:relative; box-shadow:var(--shadow-sm);
@@ -116,6 +128,41 @@
   .nb-card .card-menu-btn{position:absolute; top:8px; right:6px;}
   .nb-card .nb-name{font-family:var(--font-mono); font-size:14.5px; font-weight:700; word-break:break-word; line-height:1.4; margin-bottom:8px; padding-right:26px;}
   .nb-card .nb-meta{font-family:var(--font-mono); font-size:11.5px; color:var(--muted); margin-bottom:12px; font-variant-numeric:tabular-nums;}
+  .nb-tags{display:flex; flex-wrap:wrap; gap:5px; margin:-6px 0 10px;}
+  .nb-tag-chip{font-size:10.5px; padding:2px 8px; border-radius:999px; background:var(--input-bg); border:1px solid var(--border); color:var(--muted);}
+  .tag-filter-bar{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 14px;}
+  .tag-filter-bar:empty{display:none;}
+  .tag-filter-chip{font-size:12px; padding:5px 12px; border-radius:999px; background:var(--input-bg); border:1px solid var(--border); color:var(--muted); cursor:pointer; display:inline-flex; align-items:center; gap:4px;}
+  .tag-filter-chip .icon{width:12px; height:12px; margin-right:2px;}
+  .tag-filter-chip:hover{border-color:var(--accent);}
+  .tag-filter-chip.active{background:var(--accent-soft); border-color:var(--accent); color:var(--accent);}
+  .tag-chip-list{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .tag-chip-list:empty::after{content:"Brak tagów — dodaj pierwszy poniżej."; color:var(--muted); font-size:13px;}
+  .tag-chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; padding:4px 6px 4px 10px; border-radius:999px; background:var(--input-bg); border:1px solid var(--border);}
+  .tag-chip button{background:none; border:none; color:var(--muted); cursor:pointer; font-size:12px; padding:2px 4px; line-height:1;}
+  .tag-chip button:hover{color:#e14848;}
+  .search-results{max-height:50vh; overflow-y:auto; margin:12px 0 4px; display:flex; flex-direction:column; gap:4px;}
+  .search-result-row{display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:9px 10px; border-radius:var(--radius-md); background:var(--input-bg); border:1px solid transparent; cursor:pointer; text-align:left; width:100%;}
+  .search-result-row:hover{border-color:var(--accent);}
+  .search-result-top{display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--text); width:100%;}
+  .search-result-top .nb-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .search-result-type{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-left:auto; flex-shrink:0;}
+  .search-result-snippet{font-size:12px; color:var(--muted); word-break:break-word;}
+  .search-empty{color:var(--muted); font-size:13px; padding:14px 4px; text-align:center;}
+  .attachments-strip{display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+  .attachment-thumb{position:relative; width:56px; height:56px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); flex-shrink:0;}
+  .attachment-thumb img{width:100%; height:100%; object-fit:cover; cursor:pointer; display:block;}
+  .attachment-remove{position:absolute; top:1px; right:1px; width:18px; height:18px; line-height:1; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; border:none; font-size:11px; cursor:pointer; padding:0;}
+  .attachment-remove:hover{background:#e14848;}
+  .attachment-add-btn{width:56px; height:56px; border-radius:var(--radius-md); border:1px dashed var(--border); background:var(--input-bg); color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .attachment-add-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .attachment-add-btn .icon{margin-right:0;}
+  .attachments-inline-view{margin-top:6px;}
+  .attachments-inline-view .attachment-thumb{width:40px; height:40px;}
+  dialog.lightbox-dialog{background:transparent; border:none; padding:0; max-width:92vw; max-height:92vh;}
+  dialog.lightbox-dialog::backdrop{background:rgba(0,0,0,.82);}
+  dialog.lightbox-dialog img{display:block; max-width:92vw; max-height:92vh; border-radius:var(--radius-md); margin:0 auto;}
+  dialog.lightbox-dialog button{position:fixed; top:18px; right:18px; width:38px; height:38px; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; border:none; font-size:16px; cursor:pointer;}
   .nb-card .progress-bar{height:6px; margin-top:auto;}
   .nb-card.new-card{
     display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px;
@@ -187,6 +234,21 @@
   }
   .note-textarea:focus{outline:none; border-color:var(--accent);}
   .note-textarea:disabled{opacity:.75; cursor:default;}
+  .note-label-actions{display:flex; align-items:center; gap:4px;}
+  .note-label-actions .action-btn.active{color:var(--accent); background:var(--accent-soft);}
+  .note-hint{margin-top:8px; font-size:11.5px; color:var(--muted);}
+  .note-hint code{font-family:var(--font-mono); background:var(--input-bg); border:1px solid var(--border); border-radius:4px; padding:1px 5px;}
+  .note-preview{
+    display:block; width:100%; min-height:60vh; background:var(--card);
+    border:1px solid var(--border-soft); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm);
+    color:var(--text); padding:16px; font-size:15px; line-height:1.6; overflow-wrap:break-word;
+  }
+  .note-preview h1, .note-preview h2, .note-preview h3{margin:0 0 10px; line-height:1.3;}
+  .note-preview h1{font-size:1.5em;} .note-preview h2{font-size:1.25em;} .note-preview h3{font-size:1.1em;}
+  .note-preview p{margin:0 0 10px;}
+  .note-preview ul{margin:0 0 10px; padding-left:22px;}
+  .note-preview a{color:var(--accent); text-decoration:underline;}
+  .note-preview .note-preview-empty{color:var(--muted);}
   .filter-row{
     display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
   }
@@ -274,6 +336,10 @@
   .item-body{flex:1; min-width:0; padding:2px 0;}
   .item label{font-size:14.5px; cursor:pointer; line-height:1.4; transition:color .2s ease; display:block; word-break:break-word;}
   .item .item-note{font-size:12px; color:var(--muted); margin-top:2px; word-break:break-word;}
+  .item .item-due{display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:var(--muted); margin-top:3px; padding:2px 6px; border-radius:999px; background:var(--input-bg); border:1px solid var(--border);}
+  .item .item-due .icon{width:11px; height:11px; margin-right:0;}
+  .item .item-due.overdue{color:#e14848; background:var(--danger-soft); border-color:transparent; font-weight:600;}
+  .item.checked .item-due.overdue{color:var(--muted); background:var(--input-bg); font-weight:400;}
   .item.checked label{color:var(--muted); text-decoration:line-through; text-decoration-color:var(--muted); text-decoration-thickness:1.5px;}
   .item.priority{background:var(--flag-soft); border-left:2px solid var(--flag); margin-left:-2px; padding-left:6px;}
   .star-btn{color:var(--muted);}
@@ -540,11 +606,13 @@
         <div class="sub">Wybierz listę albo stwórz nową.</div>
       </div>
       <div class="menu-top-actions">
+        <button id="globalSearchBtn1" class="theme-toggle" title="Szukaj we wszystkich notatnikach" aria-label="Szukaj we wszystkich notatnikach"></button>
         <button id="menuOptionsBtn" class="theme-toggle popover-trigger" title="Więcej opcji" aria-label="Więcej opcji: eksport i import">⋯</button>
         <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
       </div>
     </div>
   </div>
+  <div class="tag-filter-bar" id="menuTagFilterBar"></div>
   <div class="menu-grid" id="menuGrid"></div>
 
   <div id="archiveSection" class="archive-section hidden">
@@ -562,6 +630,7 @@
         <div class="sub">Listy, które udostępnili Ci znajomi.</div>
       </div>
       <div class="menu-top-actions">
+        <button id="globalSearchBtn2" class="theme-toggle" title="Szukaj we wszystkich notatnikach" aria-label="Szukaj we wszystkich notatnikach"></button>
         <button id="joinNotebookBtn" title="Dołącz do wspólnego notatnika" aria-label="Dołącz do notatnika przez kod lub link">Dołącz przez kod</button>
       </div>
     </div>
@@ -572,6 +641,7 @@
     <div id="sharedInvitesList" class="friend-list"></div>
   </div>
 
+  <div class="tag-filter-bar" id="sharedTagFilterBar"></div>
   <div class="menu-grid" id="sharedGrid"></div>
   <div class="sub hidden" id="sharedEmptyState" style="margin-top:8px;">Nie masz jeszcze żadnych wspólnych list — poproś znajomego o link albo dodaj go w zakładce Profil i zaproś bezpośrednio.</div>
 </div>
@@ -700,9 +770,16 @@
   <div id="noteEditorWrap" class="hidden">
     <div class="note-label-row">
       <label class="note-label" for="noteContentInput">Treść notatki</label>
-      <button id="noteVoiceBtn" class="action-btn mic-btn" type="button" title="Dyktuj tekst" aria-label="Dyktuj notatkę głosem"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+      <div class="note-label-actions">
+        <button id="notePreviewToggleBtn" class="action-btn" type="button" title="Podgląd Markdown" aria-label="Przełącz podgląd Markdown"></button>
+        <button id="noteVoiceBtn" class="action-btn mic-btn" type="button" title="Dyktuj tekst" aria-label="Dyktuj notatkę głosem"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+      </div>
     </div>
     <textarea id="noteContentInput" class="note-textarea" placeholder="Zacznij pisać..."></textarea>
+    <div id="notePreviewBox" class="note-preview hidden"></div>
+    <div class="note-hint">Markdown: <code>**pogrubienie**</code>, <code># nagłówek</code>, <code>- lista</code>, <code>[tekst](link)</code></div>
+    <div class="note-label" style="margin-top:18px;">Załączniki</div>
+    <div id="noteAttachmentsWrap"></div>
   </div>
 </div>
 
@@ -789,6 +866,33 @@
   </div>
 </dialog>
 
+<dialog id="imageLightbox" class="lightbox-dialog">
+  <img id="lightboxImg" src="" alt="Podgląd zdjęcia">
+  <button id="lightboxCloseBtn" type="button" aria-label="Zamknij podgląd">✕</button>
+</dialog>
+
+<dialog id="searchDialog">
+  <div class="dlg-body">
+    <div class="dlg-title">Szukaj we wszystkich notatnikach</div>
+    <input type="text" class="dlg-input" id="globalSearchInput" placeholder="Nazwa, tag, pozycja, notatka...">
+    <div class="search-results" id="globalSearchResults"></div>
+    <div class="dlg-actions">
+      <button id="globalSearchCloseBtn">Zamknij</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="tagsDialog">
+  <div class="dlg-body">
+    <div class="dlg-title" id="tagsTitle">Tagi notatnika</div>
+    <div class="tag-chip-list" id="tagsChipList"></div>
+    <input type="text" class="dlg-input" id="tagsInput" placeholder="Nowy tag i Enter...">
+    <div class="dlg-actions">
+      <button class="primary" id="tagsCloseBtn">Gotowe</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="membersDialog">
   <div class="dlg-body">
     <div class="dlg-title" id="membersTitle">Członkowie</div>
@@ -827,6 +931,12 @@ const USER_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="curr
 const EXPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 const IMPORT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`;
 const MIC_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>`;
+const CALENDAR_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+const TAG_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24L4 3a1 1 0 0 0-1 1l.24 5.59a2 2 0 0 0 .58 1.41l9.59 9.59a2 2 0 0 0 2.83 0l4.35-4.35a2 2 0 0 0 0-2.83z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none"/></svg>`;
+const SEARCH_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+const IMAGE_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+const EYE_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EDIT_PENCIL_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>`;
 
 // dyktowanie głosowe (Web Speech API) — działa w Chrome/Edge/Safari, brak wsparcia w Firefoksie,
 // więc przycisk chowamy zamiast pokazywać coś, co i tak nie zadziała.
@@ -1187,13 +1297,14 @@ function dbErr(err, fallbackMsg){
   toast(`${fallbackMsg}${err && err.message ? ": " + err.message : ""}`, "error");
 }
 
-// niebrzydka obsługa "tabela/kolumna jeszcze nie istnieje" — zdarza się, gdy ktoś nie uruchomił jeszcze nowej
-// migracji. PostgREST zwraca to jako PGRST205/PGRST204 z komunikatem "Could not find ... in the schema cache",
-// nie jako surowy błąd Postgresa (42P01 / "does not exist") — trzeba łapać oba warianty.
+// niebrzydka obsługa "tabela/kolumna/bucket jeszcze nie istnieje" — zdarza się, gdy ktoś nie uruchomił
+// jeszcze nowej migracji. PostgREST zwraca to jako PGRST205/PGRST204 z komunikatem "Could not find ...
+// in the schema cache", nie jako surowy błąd Postgresa (42P01 / "does not exist") — trzeba łapać oba
+// warianty. Storage API (załączniki) zwraca osobno "Bucket not found" / kod "NoSuchBucket".
 function isMissingTableError(err){
   if(!err) return false;
-  if(err.code === "42P01" || err.code === "PGRST205" || err.code === "PGRST204") return true;
-  return /does not exist|could not find the table|schema cache/i.test(err.message || "");
+  if(err.code === "42P01" || err.code === "PGRST205" || err.code === "PGRST204" || err.code === "NoSuchBucket") return true;
+  return /does not exist|could not find the table|schema cache|bucket not found/i.test(err.message || "");
 }
 
 async function loadFromServer(){
@@ -1201,16 +1312,19 @@ async function loadFromServer(){
   if(nbErr){ dbErr(nbErr, "Błąd wczytywania notatników"); return; }
 
   const nbIds = notebooks.map(n => n.id);
-  let categories = [], items = [], members = [];
+  let categories = [], items = [], members = [], attachments = [];
   if(nbIds.length){
-    const [catRes, memRes] = await Promise.all([
+    const [catRes, memRes, attRes] = await Promise.all([
       sb.from("categories").select("*").in("notebook_id", nbIds).order("position"),
-      sb.from("notebook_members").select("*").in("notebook_id", nbIds)
+      sb.from("notebook_members").select("*").in("notebook_id", nbIds),
+      sb.from("attachments").select("*").in("notebook_id", nbIds).order("created_at")
     ]);
     if(catRes.error) dbErr(catRes.error, "Błąd wczytywania kategorii");
     categories = catRes.data || [];
     if(memRes.error) dbErr(memRes.error, "Błąd wczytywania członków notatnika");
     members = memRes.data || [];
+    if(attRes.error && !isMissingTableError(attRes.error)) dbErr(attRes.error, "Błąd wczytywania załączników");
+    attachments = attRes.data || [];
     const catIds = categories.map(c => c.id);
     if(catIds.length){
       const { data: itemData, error: itemErr } = await sb.from("items").select("*").in("category_id", catIds).order("position");
@@ -1227,6 +1341,7 @@ async function loadFromServer(){
       isOwner: n.owner_id === currentUser.id, ownerId: n.owner_id, shareCode: n.share_code,
       updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : null,
       isShared: !!n.is_shared, type: n.type || "checklist", noteContent: n.note_content || "",
+      tags: n.tags || [], attachments: [],
       members: [], memberCount: 1, myRole: n.owner_id === currentUser.id ? "owner" : "editor",
       categories: []
     };
@@ -1257,8 +1372,13 @@ async function loadFromServer(){
   items.forEach(it => {
     const cat = catById[it.category_id];
     if(!cat) return;
-    cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority });
+    cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority, dueDate: it.due_date || "" });
     if(it.checked) state.checked[it.id] = true;
+  });
+  attachments.forEach(a => {
+    const nb = nbById[a.notebook_id];
+    if(!nb) return;
+    nb.attachments.push({ id: a.id, itemId: a.item_id, url: a.url });
   });
 }
 
@@ -1274,6 +1394,15 @@ async function refreshMembership(nb){
   }
 }
 
+async function refreshAttachments(nb){
+  const { data, error } = await sb.from("attachments").select("*").eq("notebook_id", nb.id).order("created_at");
+  if(error){
+    if(!isMissingTableError(error)) dbErr(error, "Błąd odświeżania załączników");
+    return;
+  }
+  nb.attachments = (data || []).map(a => ({ id: a.id, itemId: a.item_id, url: a.url }));
+}
+
 // odświeża tylko kategorie/pozycje jednego notatnika (do realtime i po dołączeniu przez kod)
 async function reloadNotebookData(nb){
   if(nb.type === "note"){
@@ -1283,6 +1412,7 @@ async function reloadNotebookData(nb){
       return;
     }
     nb.noteContent = data.note_content || "";
+    await refreshAttachments(nb);
     return;
   }
   const { data: cats, error: catErr } = await sb.from("categories").select("*").eq("notebook_id", nb.id).order("position");
@@ -1301,17 +1431,18 @@ async function reloadNotebookData(nb){
   itemRows.forEach(it => {
     const cat = catById[it.category_id];
     if(!cat) return;
-    cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority });
+    cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority, dueDate: it.due_date || "" });
     if(it.checked) state.checked[it.id] = true;
   });
   nb.categories = newCategories;
+  await refreshAttachments(nb);
 }
 
-async function dbInsertNotebook({ name, color = null, isShared = false, type = "checklist" }){
+async function dbInsertNotebook({ name, color = null, isShared = false, type = "checklist", tags = [] }){
   lastLocalMutationAt = Date.now();
-  const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color, is_shared: isShared, type }).select().single();
+  const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color, is_shared: isShared, type, tags }).select().single();
   if(error){
-    // is_shared/type nie istnieją jeszcze w bazie (migration_005 nie uruchomiona) — spróbuj bez nich,
+    // is_shared/type/tags nie istnieją jeszcze w bazie (migracja nie uruchomiona) — spróbuj bez nich,
     // żeby samo tworzenie notatnika nie było całkiem zablokowane do czasu migracji
     if(isMissingTableError(error)){
       const fallback = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color }).select().single();
@@ -1355,8 +1486,8 @@ async function dbBulkSetCategoriesCollapsed(nb, collapsed){
   if(error) dbErr(error, "Nie udało się zapisać stanu kategorii");
 }
 
-async function dbInsertItem(categoryId, { text, note = "", qty = "", priority = false, checked = false, position = 0 }){
-  const { data, error } = await sb.from("items").insert({ category_id: categoryId, text, note, qty, priority, checked, position }).select().single();
+async function dbInsertItem(categoryId, { text, note = "", qty = "", priority = false, checked = false, position = 0, dueDate = "" }){
+  const { data, error } = await sb.from("items").insert({ category_id: categoryId, text, note, qty, priority, checked, position, due_date: dueDate || null }).select().single();
   if(error){ dbErr(error, "Nie udało się dodać pozycji"); return null; }
   return data;
 }
@@ -1373,6 +1504,106 @@ async function dbDeleteItems(ids){
   const { error } = await sb.from("items").delete().in("id", ids);
   if(error) dbErr(error, "Nie udało się usunąć pozycji");
 }
+
+// itemId = null → załącznik przypięty do całej notatki (nie do konkretnej pozycji)
+async function uploadAttachment(nb, itemId, file){
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${nb.id}/${crypto.randomUUID()}.${ext}`;
+  const { error: upErr } = await sb.storage.from("attachments").upload(path, file);
+  if(upErr){
+    if(isMissingTableError(upErr)) toast("Załączniki wymagają uruchomienia migration_006 w Supabase.", "error");
+    else dbErr(upErr, "Nie udało się wgrać zdjęcia");
+    return null;
+  }
+  const { data: pub } = sb.storage.from("attachments").getPublicUrl(path);
+  const { data, error } = await sb.from("attachments").insert({ notebook_id: nb.id, item_id: itemId, url: pub.publicUrl, created_by: currentUser.id }).select().single();
+  if(error){
+    if(isMissingTableError(error)) toast("Załączniki wymagają uruchomienia migration_006 w Supabase.", "error");
+    else dbErr(error, "Nie udało się zapisać załącznika");
+    return null;
+  }
+  return { id: data.id, itemId: data.item_id, url: data.url };
+}
+async function dbDeleteAttachment(att){
+  const { error } = await sb.from("attachments").delete().eq("id", att.id);
+  if(error) dbErr(error, "Nie udało się usunąć załącznika");
+  const marker = "/attachments/";
+  const idx = att.url.indexOf(marker);
+  if(idx >= 0){
+    const path = decodeURIComponent(att.url.slice(idx + marker.length).split("?")[0]);
+    sb.storage.from("attachments").remove([path]).catch(() => {});
+  }
+}
+function openImageLightbox(url){
+  document.getElementById("lightboxImg").src = url;
+  document.getElementById("imageLightbox").showModal();
+}
+document.getElementById("lightboxCloseBtn").addEventListener("click", () => document.getElementById("imageLightbox").close());
+document.getElementById("imageLightbox").addEventListener("click", (e) => {
+  if(e.target.id === "imageLightbox") document.getElementById("imageLightbox").close();
+});
+
+// itemId = null → sekcja załączników całej notatki (notatnik typu "note")
+function buildAttachmentsManager(nb, itemId, readOnly){
+  const wrap = document.createElement("div");
+  wrap.className = "attachments-manager";
+  const strip = document.createElement("div");
+  strip.className = "attachments-strip";
+  wrap.appendChild(strip);
+
+  const fileInput = document.createElement("input");
+  fileInput.type = "file"; fileInput.accept = "image/*"; fileInput.className = "hidden";
+  wrap.appendChild(fileInput);
+
+  function renderStrip(){
+    strip.innerHTML = "";
+    nb.attachments.filter(a => a.itemId === itemId).forEach(att => {
+      const thumb = document.createElement("div");
+      thumb.className = "attachment-thumb";
+      const img = document.createElement("img");
+      img.src = att.url; img.alt = "Załącznik"; img.loading = "lazy";
+      img.addEventListener("click", () => openImageLightbox(att.url));
+      thumb.appendChild(img);
+      if(!readOnly){
+        const rm = document.createElement("button");
+        rm.type = "button"; rm.className = "attachment-remove"; rm.textContent = "✕";
+        rm.title = "Usuń zdjęcie"; rm.setAttribute("aria-label", "Usuń zdjęcie");
+        rm.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          nb.attachments = nb.attachments.filter(a => a.id !== att.id);
+          touchNotebook(nb);
+          renderStrip();
+          await dbDeleteAttachment(att);
+        });
+        thumb.appendChild(rm);
+      }
+      strip.appendChild(thumb);
+    });
+    if(!readOnly){
+      const addBtn = document.createElement("button");
+      addBtn.type = "button"; addBtn.className = "attachment-add-btn";
+      addBtn.title = "Dodaj zdjęcie"; addBtn.setAttribute("aria-label", "Dodaj zdjęcie");
+      addBtn.innerHTML = IMAGE_SVG;
+      addBtn.addEventListener("click", () => fileInput.click());
+      strip.appendChild(addBtn);
+    }
+  }
+
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files[0];
+    fileInput.value = "";
+    if(!file) return;
+    const att = await uploadAttachment(nb, itemId, file);
+    if(!att) return;
+    nb.attachments.push(att);
+    touchNotebook(nb);
+    renderStrip();
+  });
+
+  renderStrip();
+  return wrap;
+}
+
 async function dbBulkSetChecked(ids, checked){
   if(!ids.length) return;
   const { error } = await sb.from("items").update({ checked }).in("id", ids);
@@ -1392,23 +1623,23 @@ async function dbInsertCategoryTree(notebookId, position, c){
     const it = items[ii];
     const itemRow = await dbInsertItem(cat.id, {
       text: it.text, note: it.note || "", qty: it.qty || "",
-      priority: !!it.priority, checked: !!it.checked, position: ii
+      priority: !!it.priority, checked: !!it.checked, position: ii, dueDate: it.dueDate || ""
     });
     if(!itemRow) continue;
-    cat.items.push({ id: itemRow.id, text: itemRow.text, note: itemRow.note, qty: itemRow.qty, priority: itemRow.priority });
+    cat.items.push({ id: itemRow.id, text: itemRow.text, note: itemRow.note, qty: itemRow.qty, priority: itemRow.priority, dueDate: itemRow.due_date || "" });
     if(itemRow.checked) state.checked[itemRow.id] = true;
   }
   return cat;
 }
 
-async function dbInsertNotebookTree({ name, color = null, categories = [], isShared = false, type = "checklist", noteContent = "" }){
-  const nbRow = await dbInsertNotebook({ name, color, isShared, type });
+async function dbInsertNotebookTree({ name, color = null, categories = [], isShared = false, type = "checklist", noteContent = "", tags = [] }){
+  const nbRow = await dbInsertNotebook({ name, color, isShared, type, tags });
   if(!nbRow) return null;
   if(type === "note" && noteContent) await dbUpdateNotebook(nbRow.id, { note_content: noteContent });
   const nb = {
     id: nbRow.id, name: nbRow.name, color: nbRow.color || "", archived: false,
     isOwner: true, ownerId: currentUser.id, shareCode: nbRow.share_code, updatedAt: Date.now(),
-    isShared, type, noteContent,
+    isShared, type, noteContent, tags: nbRow.tags || tags || [], attachments: [],
     members: [], memberCount: 1, myRole: "owner", categories: []
   };
   for(let ci = 0; ci < categories.length; ci++){
@@ -1424,7 +1655,7 @@ function extractCategoryTree(cat){
     name: cat.name, collapsed: !!cat.collapsed,
     items: cat.items.map(it => ({
       text: it.text, note: it.note || "", qty: it.qty || "",
-      priority: !!it.priority, checked: !!state.checked[it.id]
+      priority: !!it.priority, checked: !!state.checked[it.id], dueDate: it.dueDate || ""
     }))
   };
 }
@@ -1432,6 +1663,7 @@ function extractCategoryTree(cat){
 function extractNotebookTree(nb){
   return {
     name: nb.name, color: nb.color || null, type: nb.type || "checklist", noteContent: nb.noteContent || "",
+    tags: nb.tags || [],
     categories: nb.categories.map(extractCategoryTree)
   };
 }
@@ -1461,6 +1693,20 @@ function relativeTime(ts){
   const w = Math.floor(d / 7);
   if(w < 5) return `${w} tyg. temu`;
   return new Date(ts).toLocaleDateString("pl-PL");
+}
+
+// dueDate to string "YYYY-MM-DD" (wartość <input type=date>, bez strefy czasowej) —
+// porównanie po samym stringu z "dzisiejszą" datą w tym samym formacie unika przesunięć strefowych
+function todayDateStr(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function isOverdue(dueDate, checked){
+  return !!dueDate && !checked && dueDate < todayDateStr();
+}
+function formatDueDate(dueDate){
+  const [y, m, d] = dueDate.split("-");
+  return `${d}.${m}.${y}`;
 }
 
 function nbStats(nb){
@@ -1511,12 +1757,12 @@ async function importNotebooksArray(notebooksArr, checkedMap){
       name: c.name, collapsed: !!c.collapsed,
       items: (c.items || []).map(it => ({
         text: it.text, note: it.note || "", qty: it.qty || "",
-        priority: !!it.priority, checked: !!checkedMap[it.id]
+        priority: !!it.priority, checked: !!checkedMap[it.id], dueDate: it.dueDate || ""
       }))
     }));
     const built = await dbInsertNotebookTree({
       name: nb.name, color: nb.color || null, categories,
-      type: nb.type || "checklist", noteContent: nb.noteContent || ""
+      type: nb.type || "checklist", noteContent: nb.noteContent || "", tags: nb.tags || []
     });
     if(built){ state.notebooks.push(built); imported++; }
   }
@@ -1592,6 +1838,24 @@ function openMenu(anchorBtn, items){
   openPopover = { el: menu, anchor: anchorBtn, isStatic: false };
 }
 
+/* ======================= FILTROWANIE PO TAGACH ======================= */
+let menuTagFilter = null;
+let sharedTagFilter = null;
+function renderTagFilterBar(barEl, notebooks, activeTag, onSelect){
+  const allTags = [...new Set(notebooks.flatMap(nb => nb.tags || []))].sort((a,b) => a.localeCompare(b, "pl"));
+  barEl.innerHTML = "";
+  if(!allTags.length) return;
+  allTags.forEach(tag => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "tag-filter-chip" + (activeTag === tag ? " active" : "");
+    chip.innerHTML = TAG_SVG + `<span></span>`;
+    chip.querySelector("span").textContent = tag;
+    chip.addEventListener("click", () => onSelect(activeTag === tag ? null : tag));
+    barEl.appendChild(chip);
+  });
+}
+
 /* ======================= RENDER: MENU ======================= */
 function buildNbCard(nb){
   const s = nbStats(nb);
@@ -1612,6 +1876,9 @@ function buildNbCard(nb){
     metaLine = `${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione${peopleLabelStr} ${editedLabel}`;
     progressBarHtml = `<div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>`;
   }
+  const tagsHtml = (nb.tags && nb.tags.length)
+    ? `<div class="nb-tags">${nb.tags.map(t => `<span class="nb-tag-chip"></span>`).join("")}</div>`
+    : "";
   card.innerHTML = `
     <label class="nb-tab color-label" title="Kolor notatnika" aria-label="Zmień kolor notatnika ${nb.name}">
       <input type="color" class="color-input" value="${nb.color || '#5ea1ff'}">
@@ -1619,8 +1886,12 @@ function buildNbCard(nb){
     <button class="card-menu-btn popover-trigger" title="Więcej opcji" aria-label="Więcej opcji dla notatnika ${nb.name}">⋯</button>
     <div class="nb-name">${nb.name}</div>
     <div class="nb-meta">${metaLine}</div>
+    ${tagsHtml}
     ${progressBarHtml}
   `;
+  if(nb.tags && nb.tags.length){
+    card.querySelectorAll(".nb-tag-chip").forEach((el, i) => { el.textContent = nb.tags[i]; });
+  }
   card.addEventListener("click", (e) => {
     if(e.target.closest(".nb-tab") || e.target.closest(".card-menu-btn")) return;
     openNotebook(nb.id);
@@ -1656,6 +1927,7 @@ function buildNbCard(nb){
         const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
         if(v){ nb.name = v; touchNotebook(nb); dbUpdateNotebook(nb.id, { name: v }); refreshListScreens(); }
       }});
+      items.push({ label:"Tagi", icon: TAG_SVG, onClick: () => showTagsDialog(nb) });
     }
     items.push(
       { label:"⧉ Duplikuj notatnik", onClick: async () => {
@@ -1724,7 +1996,9 @@ function buildNbCard(nb){
 function renderMenu(){
   const grid = document.getElementById("menuGrid");
   grid.innerHTML = "";
-  const active = state.notebooks.filter(nb => !nb.archived && nb.isOwner && !nb.isShared);
+  const allMine = state.notebooks.filter(nb => !nb.archived && nb.isOwner && !nb.isShared);
+  renderTagFilterBar(document.getElementById("menuTagFilterBar"), allMine, menuTagFilter, (tag) => { menuTagFilter = tag; renderMenu(); });
+  const active = menuTagFilter ? allMine.filter(nb => (nb.tags||[]).includes(menuTagFilter)) : allMine;
   const archived = state.notebooks.filter(nb => nb.archived && nb.isOwner && !nb.isShared);
 
   active.forEach(nb => grid.appendChild(buildNbCard(nb)));
@@ -1763,7 +2037,7 @@ let returnTab = "mine";
 async function openNotebook(id){
   returnTab = currentTab;
   state.activeId = id;
-  filter = "all"; searchQuery = ""; hideDone = false;
+  filter = "all"; searchQuery = ""; hideDone = false; noteViewMode = "edit";
   document.getElementById("searchInput").value = "";
   document.getElementById("hideDoneToggle").classList.remove("active");
   document.getElementById("hideDoneToggle").setAttribute("aria-pressed","false");
@@ -1847,6 +2121,46 @@ function updateFilterCounts(nb){
   if(elDone) elDone.textContent = `(${done})`;
 }
 
+// podstawowy Markdown w zwykłej notatce: pogrubienie, nagłówki, listy punktowane, linkowanie —
+// ręczny, mały renderer (bez dokładania biblioteki); HTML jest uciekane PRZED wstawieniem tagów
+// znaczników, żeby np. "<script>" w tekście notatki nie mogło się wykonać w podglądzie
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+}
+function inlineMarkdown(text){
+  let out = escapeHtml(text);
+  out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g, (m, label, url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+  return out;
+}
+function renderMarkdownToHtml(src){
+  const lines = (src || "").split("\n");
+  if(!lines.some(l => l.trim())) return `<span class="note-preview-empty">Pusta notatka.</span>`;
+  let html = "";
+  let inList = false;
+  const closeList = () => { if(inList){ html += "</ul>"; inList = false; } };
+  lines.forEach(line => {
+    const headerMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    const bulletMatch = line.match(/^[-*]\s+(.*)$/);
+    if(headerMatch){
+      closeList();
+      const level = headerMatch[1].length;
+      html += `<h${level}>${inlineMarkdown(headerMatch[2])}</h${level}>`;
+    } else if(bulletMatch){
+      if(!inList){ html += "<ul>"; inList = true; }
+      html += `<li>${inlineMarkdown(bulletMatch[1])}</li>`;
+    } else if(!line.trim()){
+      closeList();
+    } else {
+      closeList();
+      html += `<p>${inlineMarkdown(line)}</p>`;
+    }
+  });
+  closeList();
+  return html;
+}
+
+let noteViewMode = "edit";
 let noteAutosaveTimer = null;
 let noteContentColumnMissingWarned = false;
 async function saveNoteContent(nb){
@@ -1864,6 +2178,24 @@ async function saveNoteContent(nb){
 }
 function renderNoteEditor(nb, readOnly){
   const ta = document.getElementById("noteContentInput");
+  const previewBox = document.getElementById("notePreviewBox");
+  const previewToggleBtn = document.getElementById("notePreviewToggleBtn");
+  const isPreview = noteViewMode === "preview";
+  ta.classList.toggle("hidden", isPreview);
+  previewBox.classList.toggle("hidden", !isPreview);
+  previewToggleBtn.classList.toggle("active", isPreview);
+  previewToggleBtn.innerHTML = isPreview ? EDIT_PENCIL_SVG : EYE_SVG;
+  previewToggleBtn.title = isPreview ? "Wróć do edycji" : "Podgląd Markdown";
+  previewToggleBtn.setAttribute("aria-label", previewToggleBtn.title);
+  if(isPreview){ previewBox.innerHTML = renderMarkdownToHtml(nb.noteContent); }
+  const noteAttWrap = document.getElementById("noteAttachmentsWrap");
+  noteAttWrap.innerHTML = "";
+  noteAttWrap.appendChild(buildAttachmentsManager(nb, null, readOnly));
+  previewToggleBtn.onclick = () => {
+    noteViewMode = isPreview ? "edit" : "preview";
+    renderNoteEditor(nb, readOnly);
+    if(noteViewMode === "edit") ta.focus();
+  };
   // nie nadpisuj tekstu, jeśli użytkownik właśnie w nim pisze (np. odświeżenie z realtime)
   if(document.activeElement !== ta) ta.value = nb.noteContent || "";
   ta.disabled = readOnly;
@@ -1887,7 +2219,7 @@ function renderNoteEditor(nb, readOnly){
   if(!SpeechRecognitionCtor){
     voiceBtn.classList.add("hidden");
   } else {
-    voiceBtn.classList.toggle("hidden", readOnly);
+    voiceBtn.classList.toggle("hidden", readOnly || isPreview);
     if(!voiceBtn.dataset.voiceAttached){
       voiceBtn.dataset.voiceAttached = "1";
       let noteDictationBase = "";
@@ -2062,6 +2394,7 @@ function renderNotebook(){
           <div class="item-body">
             <label for="${it.id}"></label>
             <div class="item-note"></div>
+            <div class="item-due"></div>
           </div>
           <div class="item-actions">
             <button class="action-btn star-btn${it.priority ? " active" : ""}" title="${it.priority ? "Usuń priorytet" : "Oznacz jako priorytet"}" aria-label="Priorytet: ${it.text}">${STAR_SVG}</button>
@@ -2078,6 +2411,19 @@ function renderNotebook(){
         });
         const noteEl = row.querySelector(".item-note");
         if(it.note){ noteEl.textContent = it.note; } else { noteEl.remove(); }
+        const dueEl = row.querySelector(".item-due");
+        if(it.dueDate){
+          const overdue = isOverdue(it.dueDate, state.checked[it.id]);
+          dueEl.innerHTML = `${CALENDAR_SVG}<span></span>`;
+          dueEl.querySelector("span").textContent = formatDueDate(it.dueDate);
+          dueEl.classList.toggle("overdue", overdue);
+        } else { dueEl.remove(); }
+        const itemAtts = nb.attachments.filter(a => a.itemId === it.id);
+        if(itemAtts.length){
+          const stripView = buildAttachmentsManager(nb, it.id, true);
+          stripView.classList.add("attachments-inline-view");
+          row.querySelector(".item-body").appendChild(stripView);
+        }
 
         row.querySelector("input").addEventListener("change", (e) => {
           state.checked[it.id] = e.target.checked;
@@ -2097,6 +2443,7 @@ function renderNotebook(){
           row.addEventListener("animationend", () => {
             cat.items = cat.items.filter(x => x.id !== it.id);
             delete state.checked[it.id];
+            nb.attachments = nb.attachments.filter(a => a.itemId !== it.id);
             touchNotebook(nb);
             dbDeleteItem(it.id);
             renderItems(); updateProgress(); refreshCount();
@@ -2104,10 +2451,10 @@ function renderNotebook(){
               const restoredIdx = Math.min(idx, cat.items.length);
               const row2 = await dbInsertItem(cat.id, {
                 text: it.text, note: it.note || "", qty: it.qty || "",
-                priority: !!it.priority, checked: wasChecked, position: restoredIdx
+                priority: !!it.priority, checked: wasChecked, position: restoredIdx, dueDate: it.dueDate || ""
               });
               if(!row2) return;
-              cat.items.splice(restoredIdx, 0, { id: row2.id, text: row2.text, note: row2.note, qty: row2.qty, priority: row2.priority });
+              cat.items.splice(restoredIdx, 0, { id: row2.id, text: row2.text, note: row2.note, qty: row2.qty, priority: row2.priority, dueDate: row2.due_date || "" });
               if(wasChecked) state.checked[row2.id] = true;
               touchNotebook(nb);
               await dbReorderItems(cat);
@@ -2127,19 +2474,28 @@ function renderNotebook(){
               <input type="text" class="edit-inline" id="editNote-${it.id}" placeholder="Notatka..." style="flex:2; border-color:var(--border);">
               <input type="text" class="edit-inline" id="editQty-${it.id}" placeholder="Ilość, np. 2" style="flex:1; border-color:var(--border);">
             </div>
+            <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center;">
+              <input type="date" class="edit-inline" id="editDue-${it.id}" style="flex:1; border-color:var(--border);" aria-label="Termin">
+              <button type="button" class="action-btn" id="editDueClear-${it.id}" title="Usuń termin" aria-label="Usuń termin">✕</button>
+            </div>
             ${otherCats.length ? `
             <select class="edit-inline" id="editMove-${it.id}" style="display:block; width:100%; border-color:var(--border);">
               <option value="">↪ Przenieś do innej kategorii...</option>
               ${moveOptions}
             </select>` : ""}
+            <div id="editAttachments-${it.id}" style="margin-top:8px;"></div>
           `;
           const textInput = body.querySelector(`#editText-${it.id}`);
           const noteInput = body.querySelector(`#editNote-${it.id}`);
           const qtyInput = body.querySelector(`#editQty-${it.id}`);
+          const dueInput = body.querySelector(`#editDue-${it.id}`);
+          const dueClearBtn = body.querySelector(`#editDueClear-${it.id}`);
           const moveSelect = body.querySelector(`#editMove-${it.id}`);
+          body.querySelector(`#editAttachments-${it.id}`).appendChild(buildAttachmentsManager(nb, it.id, false));
           textInput.value = it.text;
           noteInput.value = it.note || "";
           qtyInput.value = it.qty || "";
+          dueInput.value = it.dueDate || "";
           actions.style.display = "none";
           textInput.focus(); textInput.select();
 
@@ -2148,9 +2504,12 @@ function renderNotebook(){
             if(v) it.text = v;
             it.note = noteInput.value.trim();
             it.qty = qtyInput.value.trim();
+            it.dueDate = dueInput.value || "";
             touchNotebook(nb);
-            dbUpdateItem(it.id, { text: it.text, note: it.note, qty: it.qty });
+            dbUpdateItem(it.id, { text: it.text, note: it.note, qty: it.qty, due_date: it.dueDate || null });
           }
+
+          dueClearBtn.addEventListener("click", () => { dueInput.value = ""; commitTextNote(); renderItems(); });
 
           if(moveSelect){
             moveSelect.addEventListener("change", () => {
@@ -2178,6 +2537,8 @@ function renderNotebook(){
           textInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
           noteInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
           qtyInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
+          dueInput.addEventListener("change", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
+          dueInput.addEventListener("blur", () => setTimeout(() => { if(!body.contains(document.activeElement)) commit(); }, 120));
         });
 
         itemsInner.insertBefore(row, itemsInner.querySelector(".add-row"));
@@ -2211,7 +2572,7 @@ function renderNotebook(){
       input.value = "";
       const row = await dbInsertItem(cat.id, { text, position: cat.items.length });
       if(!row) return;
-      cat.items.push({ id: row.id, text: row.text, note: row.note, qty: row.qty, priority: row.priority });
+      cat.items.push({ id: row.id, text: row.text, note: row.note, qty: row.qty, priority: row.priority, dueDate: row.due_date || "" });
       touchNotebook(nb);
       renderItems(); updateProgress(); refreshCount();
     }
@@ -2476,10 +2837,10 @@ document.getElementById("deleteCheckedBtn").onclick = async () => {
       const idx = Math.min(r.index, cat.items.length);
       const row = await dbInsertItem(cat.id, {
         text: r.item.text, note: r.item.note || "", qty: r.item.qty || "",
-        priority: !!r.item.priority, checked: !!removedChecked[r.item.id], position: idx
+        priority: !!r.item.priority, checked: !!removedChecked[r.item.id], position: idx, dueDate: r.item.dueDate || ""
       });
       if(!row) continue;
-      cat.items.splice(idx, 0, { id: row.id, text: row.text, note: row.note, qty: row.qty, priority: row.priority });
+      cat.items.splice(idx, 0, { id: row.id, text: row.text, note: row.note, qty: row.qty, priority: row.priority, dueDate: row.due_date || "" });
       if(row.checked) state.checked[row.id] = true;
       await dbReorderItems(cat);
     }
@@ -2653,6 +3014,148 @@ function showProfileDialog(profile){
   document.getElementById("viewProfileDialog").showModal();
 }
 document.getElementById("viewProfileCloseBtn").addEventListener("click", () => document.getElementById("viewProfileDialog").close());
+
+function renderTagsChipList(nb, container){
+  container.innerHTML = "";
+  (nb.tags || []).forEach(tag => {
+    const chip = document.createElement("span");
+    chip.className = "tag-chip";
+    chip.innerHTML = `<span></span><button type="button" aria-label="Usuń tag ${tag}">✕</button>`;
+    chip.querySelector("span").textContent = tag;
+    chip.querySelector("button").addEventListener("click", () => {
+      nb.tags = (nb.tags || []).filter(t => t !== tag);
+      touchNotebook(nb);
+      dbUpdateNotebook(nb.id, { tags: nb.tags });
+      renderTagsChipList(nb, container);
+      refreshListScreens();
+    });
+    container.appendChild(chip);
+  });
+}
+function showTagsDialog(nb){
+  const dlg = document.getElementById("tagsDialog");
+  document.getElementById("tagsTitle").textContent = `Tagi „${nb.name}”`;
+  const chipList = document.getElementById("tagsChipList");
+  const input = document.getElementById("tagsInput");
+  input.value = "";
+  renderTagsChipList(nb, chipList);
+  dlg.showModal();
+  input.focus();
+  input.onkeydown = (e) => {
+    if(e.key !== "Enter") return;
+    e.preventDefault();
+    const v = input.value.trim();
+    if(!v) return;
+    if(!nb.tags) nb.tags = [];
+    if(!nb.tags.includes(v)){
+      nb.tags = [...nb.tags, v];
+      touchNotebook(nb);
+      dbUpdateNotebook(nb.id, { tags: nb.tags });
+      renderTagsChipList(nb, chipList);
+      refreshListScreens();
+    }
+    input.value = "";
+  };
+}
+document.getElementById("tagsCloseBtn").addEventListener("click", () => document.getElementById("tagsDialog").close());
+
+/* ======================= GLOBALNE WYSZUKIWANIE ======================= */
+function snippetAround(text, q){
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if(idx < 0) return text.slice(0, 80);
+  const start = Math.max(0, idx - 20);
+  const end = Math.min(text.length, idx + q.length + 40);
+  return (start > 0 ? "…" : "") + text.slice(start, end).trim() + (end < text.length ? "…" : "");
+}
+
+function globalSearch(query){
+  const q = query.trim().toLowerCase();
+  if(!q) return [];
+  const results = [];
+  state.notebooks.forEach(nb => {
+    if(nb.archived) return;
+    if(nb.name.toLowerCase().includes(q)){
+      results.push({ nb, type:"notatnik", label: nb.name, query });
+    }
+    (nb.tags || []).forEach(tag => {
+      if(tag.toLowerCase().includes(q)) results.push({ nb, type:"tag", label: `#${tag}`, query });
+    });
+    if(nb.type === "note"){
+      if((nb.noteContent || "").toLowerCase().includes(q)){
+        results.push({ nb, type:"notatka", label: snippetAround(nb.noteContent, q), query });
+      }
+    } else {
+      nb.categories.forEach(cat => {
+        if(cat.name.toLowerCase().includes(q)){
+          results.push({ nb, type:"kategoria", label: cat.name, query });
+        }
+        cat.items.forEach(it => {
+          const hay = `${it.text} ${it.note || ""}`;
+          if(hay.toLowerCase().includes(q)){
+            results.push({ nb, type:"pozycja", label: snippetAround(hay, q), query });
+          }
+        });
+      });
+    }
+  });
+  return results.slice(0, 60);
+}
+
+async function goToSearchResult(r){
+  document.getElementById("searchDialog").close();
+  closePopover();
+  await openNotebook(r.nb.id);
+  if(r.nb.type !== "note" && (r.type === "pozycja" || r.type === "kategoria")){
+    document.getElementById("searchInput").value = r.query;
+    searchQuery = r.query.toLowerCase();
+    renderNotebook();
+  }
+}
+
+function renderGlobalSearchResults(query){
+  const box = document.getElementById("globalSearchResults");
+  box.innerHTML = "";
+  const q = query.trim();
+  if(!q){ return; }
+  const results = globalSearch(q);
+  if(!results.length){
+    box.innerHTML = `<div class="search-empty">Brak wyników dla „${q}”.</div>`;
+    return;
+  }
+  results.forEach(r => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "search-result-row";
+    row.innerHTML = `
+      <div class="search-result-top">
+        <span class="nb-dot" style="background:${r.nb.color || 'var(--muted)'}"></span>
+        <span class="nb-name-inline"></span>
+        <span class="search-result-type">${r.type}</span>
+      </div>
+      ${r.type !== "notatnik" && r.type !== "tag" ? `<div class="search-result-snippet"></div>` : ""}
+    `;
+    row.querySelector(".nb-name-inline").textContent = r.nb.name;
+    const snippetEl = row.querySelector(".search-result-snippet");
+    if(snippetEl) snippetEl.textContent = r.label;
+    row.addEventListener("click", () => goToSearchResult(r));
+    box.appendChild(row);
+  });
+}
+
+function openGlobalSearchDialog(){
+  const dlg = document.getElementById("searchDialog");
+  const input = document.getElementById("globalSearchInput");
+  input.value = "";
+  document.getElementById("globalSearchResults").innerHTML = "";
+  dlg.showModal();
+  input.focus();
+}
+document.getElementById("globalSearchInput").addEventListener("input", (e) => renderGlobalSearchResults(e.target.value));
+document.getElementById("globalSearchCloseBtn").addEventListener("click", () => document.getElementById("searchDialog").close());
+document.getElementById("globalSearchBtn1").innerHTML = SEARCH_SVG;
+document.getElementById("globalSearchBtn2").innerHTML = SEARCH_SVG;
+document.getElementById("globalSearchBtn1").addEventListener("click", openGlobalSearchDialog);
+document.getElementById("globalSearchBtn2").addEventListener("click", openGlobalSearchDialog);
 
 async function showMembersDialog(nb){
   const dlg = document.getElementById("membersDialog");
@@ -3136,7 +3639,9 @@ function renderShared(){
 
   const grid = document.getElementById("sharedGrid");
   grid.innerHTML = "";
-  const shared = state.notebooks.filter(nb => !nb.archived && (!nb.isOwner || nb.isShared));
+  const allShared = state.notebooks.filter(nb => !nb.archived && (!nb.isOwner || nb.isShared));
+  renderTagFilterBar(document.getElementById("sharedTagFilterBar"), allShared, sharedTagFilter, (tag) => { sharedTagFilter = tag; renderShared(); });
+  const shared = sharedTagFilter ? allShared.filter(nb => (nb.tags||[]).includes(sharedTagFilter)) : allShared;
   shared.forEach(nb => grid.appendChild(buildNbCard(nb)));
 
   const newCard = document.createElement("div");
@@ -3157,7 +3662,7 @@ function renderShared(){
   newCard.addEventListener("keydown", e => { if(e.key === "Enter") createSharedNb(); });
   grid.appendChild(newCard);
 
-  document.getElementById("sharedEmptyState").classList.toggle("hidden", shared.length > 0);
+  document.getElementById("sharedEmptyState").classList.toggle("hidden", allShared.length > 0);
 }
 
 /* ======================= REALTIME ======================= */
@@ -3169,6 +3674,7 @@ function subscribeToNotebook(nb){
     .on("postgres_changes", { event:"*", schema:"public", table:"categories", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
     .on("postgres_changes", { event:"*", schema:"public", table:"items" }, () => refreshActiveNotebook())
     .on("postgres_changes", { event:"*", schema:"public", table:"notebook_members", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
+    .on("postgres_changes", { event:"*", schema:"public", table:"attachments", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
     .subscribe();
 }
 const ECHO_SUPPRESS_MS = 1500;
