@@ -549,6 +549,12 @@
       </div>
     </div>
   </div>
+
+  <div id="sharedInvitesSection" class="hidden">
+    <div class="section-heading">Zaproszenia do notatników</div>
+    <div id="sharedInvitesList" class="friend-list"></div>
+  </div>
+
   <div class="menu-grid" id="sharedGrid"></div>
   <div class="sub hidden" id="sharedEmptyState" style="margin-top:8px;">Nie masz jeszcze żadnych wspólnych list — poproś znajomego o link albo dodaj go w zakładce Profil i zaproś bezpośrednio.</div>
 </div>
@@ -730,6 +736,7 @@
     <div class="dlg-title" id="inviteFriendTitle">Zaproś znajomego</div>
     <div class="friend-list" id="inviteFriendList" style="max-height:55vh; overflow-y:auto;"></div>
     <div class="dlg-actions">
+      <button id="inviteDialogShareBtn" style="margin-right:auto;">Udostępnij link</button>
       <button id="inviteFriendCloseBtn">Zamknij</button>
     </div>
   </div>
@@ -1212,7 +1219,8 @@ async function dbInsertNotebookTree({ name, color = null, categories = [] }){
   if(!nbRow) return null;
   const nb = {
     id: nbRow.id, name: nbRow.name, color: nbRow.color || "", archived: false,
-    isOwner: true, shareCode: nbRow.share_code, updatedAt: Date.now(), categories: []
+    isOwner: true, ownerId: currentUser.id, shareCode: nbRow.share_code, updatedAt: Date.now(),
+    members: [], memberCount: 1, myRole: "owner", categories: []
   };
   for(let ci = 0; ci < categories.length; ci++){
     const cat = await dbInsertCategoryTree(nb.id, ci, categories[ci]);
@@ -1416,9 +1424,13 @@ function buildNbCard(nb){
     if(fill) fill.style.background = e.target.value;
   });
   colorInputEl.addEventListener("change", (e) => {
+    // tylko zapis — przebudowa siatki (refreshListScreens) czeka na "blur", bo pełny
+    // render niszczy ten input i natywny selektor koloru zamyka się w połowie wybierania
     nb.color = e.target.value;
     touchNotebook(nb);
     dbUpdateNotebook(nb.id, { color: nb.color });
+  });
+  colorInputEl.addEventListener("blur", () => {
     refreshListScreens();
   });
   card.querySelector(".nb-tab").addEventListener("click", (e) => e.stopPropagation());
@@ -2284,7 +2296,9 @@ async function showShareDialog(nb){
   }
 }
 
+let currentInviteDialogNb = null;
 async function showInviteFriendDialog(nb){
+  currentInviteDialogNb = nb;
   const dlg = document.getElementById("inviteFriendDialog");
   const list = document.getElementById("inviteFriendList");
   document.getElementById("inviteFriendTitle").textContent = `Zaproś znajomego do „${nb.name}”`;
@@ -2327,6 +2341,11 @@ async function showInviteFriendDialog(nb){
   });
 }
 document.getElementById("inviteFriendCloseBtn").addEventListener("click", () => document.getElementById("inviteFriendDialog").close());
+document.getElementById("inviteDialogShareBtn").addEventListener("click", () => {
+  const nb = currentInviteDialogNb;
+  document.getElementById("inviteFriendDialog").close();
+  if(nb) showShareDialog(nb);
+});
 
 const ROLE_LABELS = { owner:"Właściciel", editor:"Może edytować", viewer:"Tylko odczyt" };
 
@@ -2604,59 +2623,67 @@ async function loadSuggestedFriends(){
     .sort((a, b) => b.mutual - a.mutual);
 }
 
+// odświeża listę oczekujących zaproszeń do notatników w podanym kontenerze — używane
+// zarówno w Profilu jak i w zakładce Wspólne, żeby zaproszenie było widoczne w obu miejscach
+async function loadAndRenderNotebookInvites(sectionEl, listEl){
+  listEl.innerHTML = "";
+  const { data: nbInvites, error: nbInvitesErr } = await sb.from("notebook_invites").select("*").eq("to_user_id", currentUser.id);
+  if(nbInvitesErr && !isMissingTableError(nbInvitesErr)){ dbErr(nbInvitesErr, "Błąd wczytywania zaproszeń do notatników"); }
+  const invites = nbInvitesErr ? [] : (nbInvites || []);
+  sectionEl.classList.toggle("hidden", invites.length === 0);
+  if(!invites.length) return;
+  const fromIds = [...new Set(invites.map(i => i.from_user_id))];
+  const { data: fromProfiles } = await sb.from("profiles").select("id,username").in("id", fromIds);
+  const fromById = {};
+  (fromProfiles || []).forEach(p => fromById[p.id] = p);
+  invites.forEach(inv => {
+    const fromName = (fromById[inv.from_user_id] && fromById[inv.from_user_id].username) || "znajomego";
+    const row = document.createElement("div");
+    row.className = "friend-row";
+    row.innerHTML = `
+      <div class="friend-name">${inv.notebook_name}<div class="sub" style="margin:2px 0 0;">zaproszenie od ${fromName}</div></div>
+      <div class="friend-actions"></div>
+    `;
+    const acceptBtn = document.createElement("button");
+    acceptBtn.className = "primary";
+    acceptBtn.textContent = "Dołącz";
+    acceptBtn.onclick = async () => {
+      const { error } = await sb.rpc("accept_notebook_invite", { invite_id: inv.id });
+      if(error){ dbErr(error, "Nie udało się dołączyć"); return; }
+      toast(`Dołączono do „${inv.notebook_name}”.`, "success");
+      await loadFromServer();
+      refreshNotebookInviteSections();
+      refreshListScreens();
+    };
+    const rejectBtn = document.createElement("button");
+    rejectBtn.className = "action-btn del-btn";
+    rejectBtn.textContent = "✕";
+    rejectBtn.title = "Odrzuć";
+    rejectBtn.onclick = async () => {
+      const { error } = await sb.from("notebook_invites").delete().eq("id", inv.id);
+      if(error){ dbErr(error, "Nie udało się odrzucić"); return; }
+      refreshNotebookInviteSections();
+    };
+    row.querySelector(".friend-actions").append(acceptBtn, rejectBtn);
+    listEl.appendChild(row);
+  });
+}
+
+function refreshNotebookInviteSections(){
+  loadAndRenderNotebookInvites(document.getElementById("notebookInvitesSection"), document.getElementById("notebookInvitesList"));
+  loadAndRenderNotebookInvites(document.getElementById("sharedInvitesSection"), document.getElementById("sharedInvitesList"));
+}
+
 async function renderProfile(){
   document.getElementById("avatarPreview").src = avatarSrc(currentProfile);
   document.getElementById("usernameInput").value = (currentProfile && currentProfile.username) || "";
   document.getElementById("profileEmailLabel").textContent = currentUser.email;
   document.getElementById("friendSearchResults").innerHTML = "";
 
-  const nbInvitesSection = document.getElementById("notebookInvitesSection");
-  const nbInvitesList = document.getElementById("notebookInvitesList");
-  nbInvitesList.innerHTML = "";
-  const [nbInvitesRes, friendsData] = await Promise.all([
-    sb.from("notebook_invites").select("*").eq("to_user_id", currentUser.id),
+  const [, friendsData] = await Promise.all([
+    loadAndRenderNotebookInvites(document.getElementById("notebookInvitesSection"), document.getElementById("notebookInvitesList")),
     loadFriendsData()
   ]);
-  const { data: nbInvites, error: nbInvitesErr } = nbInvitesRes;
-  if(nbInvitesErr && !isMissingTableError(nbInvitesErr)){ dbErr(nbInvitesErr, "Błąd wczytywania zaproszeń do notatników"); }
-  const invites = nbInvitesErr ? [] : (nbInvites || []);
-  nbInvitesSection.classList.toggle("hidden", invites.length === 0);
-  if(invites.length){
-    const fromIds = [...new Set(invites.map(i => i.from_user_id))];
-    const { data: fromProfiles } = await sb.from("profiles").select("id,username").in("id", fromIds);
-    const fromById = {};
-    (fromProfiles || []).forEach(p => fromById[p.id] = p);
-    invites.forEach(inv => {
-      const fromName = (fromById[inv.from_user_id] && fromById[inv.from_user_id].username) || "znajomego";
-      const row = document.createElement("div");
-      row.className = "friend-row";
-      row.innerHTML = `
-        <div class="friend-name">${inv.notebook_name}<div class="sub" style="margin:2px 0 0;">zaproszenie od ${fromName}</div></div>
-        <div class="friend-actions"></div>
-      `;
-      const acceptBtn = document.createElement("button");
-      acceptBtn.className = "primary";
-      acceptBtn.textContent = "Dołącz";
-      acceptBtn.onclick = async () => {
-        const { error } = await sb.rpc("accept_notebook_invite", { invite_id: inv.id });
-        if(error){ dbErr(error, "Nie udało się dołączyć"); return; }
-        toast(`Dołączono do „${inv.notebook_name}”.`, "success");
-        await loadFromServer();
-        renderProfile();
-      };
-      const rejectBtn = document.createElement("button");
-      rejectBtn.className = "action-btn del-btn";
-      rejectBtn.textContent = "✕";
-      rejectBtn.title = "Odrzuć";
-      rejectBtn.onclick = async () => {
-        const { error } = await sb.from("notebook_invites").delete().eq("id", inv.id);
-        if(error){ dbErr(error, "Nie udało się odrzucić"); return; }
-        renderProfile();
-      };
-      row.querySelector(".friend-actions").append(acceptBtn, rejectBtn);
-      nbInvitesList.appendChild(row);
-    });
-  }
 
   const { friends, incoming, outgoing } = friendsData;
 
@@ -2668,11 +2695,10 @@ async function renderProfile(){
   showSuggestedBtn.classList.remove("hidden");
   showSuggestedBtn.disabled = false;
   showSuggestedBtn.textContent = "Pokaż propozycje";
-  showSuggestedBtn.onclick = async () => {
-    showSuggestedBtn.disabled = true;
-    showSuggestedBtn.textContent = "Wczytywanie...";
-    const suggestions = await loadSuggestedFriends();
-    showSuggestedBtn.classList.add("hidden");
+  let suggestedVisible = false;
+  let cachedSuggestions = null;
+
+  function renderSuggestedList(suggestions){
     suggestedList.innerHTML = suggestions.length ? "" : `<div class="sub">Brak propozycji — może już znasz wszystkich?</div>`;
     suggestions.forEach(s => {
       const row = buildFriendRow(s.profile, "", mutualFriendsLabel(s.mutual));
@@ -2696,6 +2722,22 @@ async function renderProfile(){
       row.querySelector(".friend-actions").appendChild(btn);
       suggestedList.appendChild(row);
     });
+  }
+
+  showSuggestedBtn.onclick = async () => {
+    if(suggestedVisible){
+      suggestedVisible = false;
+      suggestedList.innerHTML = "";
+      showSuggestedBtn.textContent = "Pokaż propozycje";
+      return;
+    }
+    showSuggestedBtn.disabled = true;
+    showSuggestedBtn.textContent = "Wczytywanie...";
+    if(!cachedSuggestions) cachedSuggestions = await loadSuggestedFriends();
+    showSuggestedBtn.disabled = false;
+    suggestedVisible = true;
+    showSuggestedBtn.textContent = "Ukryj propozycje";
+    renderSuggestedList(cachedSuggestions);
   };
 
   const incomingSection = document.getElementById("incomingRequestsSection");
@@ -2786,10 +2828,36 @@ document.getElementById("friendSearchInput").addEventListener("keydown", e => { 
 
 /* ======================= WSPÓLNE (ZE ZNAJOMYMI) ======================= */
 function renderShared(){
+  loadAndRenderNotebookInvites(document.getElementById("sharedInvitesSection"), document.getElementById("sharedInvitesList"));
+
   const grid = document.getElementById("sharedGrid");
   grid.innerHTML = "";
   const shared = state.notebooks.filter(nb => !nb.archived && !nb.isOwner);
   shared.forEach(nb => grid.appendChild(buildNbCard(nb)));
+
+  const newCard = document.createElement("div");
+  newCard.className = "nb-card new-card";
+  newCard.tabIndex = 0;
+  newCard.setAttribute("role","button");
+  newCard.setAttribute("aria-label","Utwórz nowy wspólny notatnik");
+  newCard.innerHTML = `<div class="plus">+</div><div>Nowy wspólny notatnik</div>`;
+  async function createSharedNb(){
+    const name = await customPrompt("Nazwa nowego wspólnego notatnika:", "Nowa wspólna lista", { title:"Nowy wspólny notatnik" });
+    if(!name) return;
+    const templateId = await chooseTemplate();
+    const template = NB_TEMPLATES.find(t => t.id === templateId) || NB_TEMPLATES[0];
+    const built = await dbInsertNotebookTree({
+      name, categories: template.categories.map(c => ({ name: c.name, collapsed:false, items: [] }))
+    });
+    if(!built) return;
+    state.notebooks.push(built);
+    toast(`Utworzono „${built.name}”.`, "success");
+    showInviteFriendDialog(built);
+  }
+  newCard.addEventListener("click", createSharedNb);
+  newCard.addEventListener("keydown", e => { if(e.key === "Enter") createSharedNb(); });
+  grid.appendChild(newCard);
+
   document.getElementById("sharedEmptyState").classList.toggle("hidden", shared.length > 0);
 }
 
@@ -2822,7 +2890,7 @@ function subscribeGlobal(){
   globalChannel = sb.channel("global-updates")
     .on("postgres_changes", { event:"*", schema:"public", table:"notebooks" }, () => refreshTopLevel())
     .on("postgres_changes", { event:"*", schema:"public", table:"notebook_members" }, () => refreshTopLevel())
-    .on("postgres_changes", { event:"*", schema:"public", table:"notebook_invites", filter:`to_user_id=eq.${currentUser.id}` }, () => { if(currentTab === "profile") renderProfile(); })
+    .on("postgres_changes", { event:"*", schema:"public", table:"notebook_invites", filter:`to_user_id=eq.${currentUser.id}` }, () => refreshNotebookInviteSections())
     .on("postgres_changes", { event:"*", schema:"public", table:"friend_requests" }, () => { if(currentTab === "profile") renderProfile(); })
     .subscribe();
 }
