@@ -580,6 +580,11 @@
   </div>
   <div id="friendSearchResults"></div>
 
+  <div id="suggestedFriendsSection" class="hidden">
+    <div class="section-heading">Proponowani znajomi</div>
+    <div id="suggestedFriendsList" class="friend-list"></div>
+  </div>
+
   <div id="incomingRequestsSection" class="hidden">
     <div class="section-heading">Zaproszenia do znajomych</div>
     <div id="incomingRequestsList" class="friend-list"></div>
@@ -2372,15 +2377,49 @@ async function loadFriendsData(){
   return { friends, incoming, outgoing };
 }
 
-function buildFriendRow(profile, actionsHtml){
+function buildFriendRow(profile, actionsHtml, subtitle){
   const row = document.createElement("div");
   row.className = "friend-row";
   row.innerHTML = `
     <img class="avatar-img" src="${avatarSrc(profile)}" alt="">
-    <div class="friend-name">${(profile && profile.username) || "(usunięty użytkownik)"}</div>
+    <div class="friend-name">${(profile && profile.username) || "(usunięty użytkownik)"}${subtitle ? `<div class="sub" style="margin:2px 0 0;">${subtitle}</div>` : ""}</div>
     <div class="friend-actions">${actionsHtml || ""}</div>
   `;
   return row;
+}
+
+function mutualFriendsLabel(n){
+  if(n === 0) return "Brak wspólnych znajomych";
+  if(n === 1) return "1 wspólny znajomy";
+  return `${n} wspólnych znajomych`;
+}
+
+async function loadSuggestedFriends(){
+  const { data: profiles, error } = await sb.from("profiles").select("id,username,avatar_url").neq("id", currentUser.id);
+  if(error){ dbErr(error, "Błąd wczytywania propozycji znajomych"); return []; }
+  if(!profiles || !profiles.length) return [];
+
+  const { data: allAccepted, error: reqErr } = await sb.from("friend_requests").select("sender_id,receiver_id").eq("status", "accepted");
+  if(reqErr){ dbErr(reqErr, "Błąd wczytywania propozycji znajomych"); return []; }
+
+  const friendsByUser = {};
+  (allAccepted || []).forEach(r => {
+    if(!friendsByUser[r.sender_id]) friendsByUser[r.sender_id] = new Set();
+    friendsByUser[r.sender_id].add(r.receiver_id);
+    if(!friendsByUser[r.receiver_id]) friendsByUser[r.receiver_id] = new Set();
+    friendsByUser[r.receiver_id].add(r.sender_id);
+  });
+  const myFriends = friendsByUser[currentUser.id] || new Set();
+
+  return profiles
+    .filter(p => !myFriends.has(p.id))
+    .map(p => {
+      const theirFriends = friendsByUser[p.id] || new Set();
+      let mutual = 0;
+      theirFriends.forEach(id => { if(myFriends.has(id)) mutual++; });
+      return { profile: p, mutual };
+    })
+    .sort((a, b) => b.mutual - a.mutual);
 }
 
 async function renderProfile(){
@@ -2433,7 +2472,37 @@ async function renderProfile(){
     });
   }
 
-  const { friends, incoming } = await loadFriendsData();
+  const { friends, incoming, outgoing } = await loadFriendsData();
+
+  const friendIds = new Set(friends.map(f => f.userId));
+  const pendingIds = new Set([...incoming.map(r => r.sender_id), ...outgoing.map(r => r.receiver_id)]);
+  const suggestedSection = document.getElementById("suggestedFriendsSection");
+  const suggestedList = document.getElementById("suggestedFriendsList");
+  suggestedList.innerHTML = "";
+  const suggestions = await loadSuggestedFriends();
+  suggestedSection.classList.toggle("hidden", suggestions.length === 0);
+  suggestions.forEach(s => {
+    const row = buildFriendRow(s.profile, "", mutualFriendsLabel(s.mutual));
+    const btn = document.createElement("button");
+    if(friendIds.has(s.profile.id)){
+      btn.textContent = "Już znajomi";
+      btn.disabled = true;
+    } else if(pendingIds.has(s.profile.id)){
+      btn.textContent = "Oczekuje";
+      btn.disabled = true;
+    } else {
+      btn.className = "primary";
+      btn.textContent = "Dodaj";
+      btn.onclick = async () => {
+        const { error: reqErr } = await sb.from("friend_requests").insert({ sender_id: currentUser.id, receiver_id: s.profile.id });
+        if(reqErr){ dbErr(reqErr, "Nie udało się wysłać zaproszenia"); return; }
+        toast(`Wysłano zaproszenie do ${s.profile.username}.`, "success");
+        btn.textContent = "Oczekuje"; btn.disabled = true;
+      };
+    }
+    row.querySelector(".friend-actions").appendChild(btn);
+    suggestedList.appendChild(row);
+  });
 
   const incomingSection = document.getElementById("incomingRequestsSection");
   const incomingList = document.getElementById("incomingRequestsList");
