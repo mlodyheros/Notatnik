@@ -318,6 +318,21 @@
   .footer-bar::-webkit-scrollbar{display:none;}
   .footer-bar:not(:has(> button:not(.hidden))){display:none;}
 
+  /* ---------- notatnik w trybie "tylko odczyt" (rola: viewer) ---------- */
+  #notebookScreen.read-only .add-cat-row,
+  #notebookScreen.read-only .add-row,
+  #notebookScreen.read-only .item-actions,
+  #notebookScreen.read-only .cat-header .card-menu-btn,
+  #notebookScreen.read-only .drag-handle,
+  #notebookScreen.read-only .item-drag-handle,
+  #notebookScreen.read-only .sort-select,
+  #notebookScreen.read-only #nbEditBtn{display:none !important;}
+  #notebookScreen.read-only .cat-header{cursor:default;}
+  .read-only-badge{
+    display:inline-flex; align-items:center; gap:4px; font-size:11.5px; color:var(--muted);
+    border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-left:8px; white-space:nowrap;
+  }
+
   /* ---------- popover / rozwijane menu ---------- */
   .popover-menu{
     position:fixed; z-index:70; min-width:190px;
@@ -580,10 +595,9 @@
   </div>
   <div id="friendSearchResults"></div>
 
-  <div id="suggestedFriendsSection" class="hidden">
-    <div class="section-heading">Proponowani znajomi</div>
-    <div id="suggestedFriendsList" class="friend-list"></div>
-  </div>
+  <div class="section-heading">Proponowani znajomi</div>
+  <button id="showSuggestedBtn" class="text-btn" style="margin-bottom:10px;">Pokaż propozycje</button>
+  <div id="suggestedFriendsList" class="friend-list"></div>
 
   <div id="incomingRequestsSection" class="hidden">
     <div class="section-heading">Zaproszenia do znajomych</div>
@@ -619,6 +633,7 @@
       <div class="nb-title" id="nbTitleWrap">
         <span id="nbTitleText"></span>
         <button class="action-btn" id="nbEditBtn" title="Zmień nazwę" aria-label="Zmień nazwę notatnika">✎</button>
+        <span id="nbRoleBadge" class="read-only-badge hidden">Tylko odczyt</span>
       </div>
       <button id="themeToggleBtn2" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
     </div>
@@ -667,6 +682,8 @@
 </div>
 
 <div class="popover-menu hidden" id="moreActionsMenu">
+  <button id="membersBtn">Członkowie</button>
+  <div class="menu-divider"></div>
   <button id="resetAll">Wyczyść zaznaczenia</button>
   <button class="danger-item" id="deleteCheckedBtn">Usuń zaznaczone</button>
   <button id="archiveNbBtn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> Archiwizuj</button>
@@ -714,6 +731,26 @@
     <div class="friend-list" id="inviteFriendList" style="max-height:55vh; overflow-y:auto;"></div>
     <div class="dlg-actions">
       <button id="inviteFriendCloseBtn">Zamknij</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="membersDialog">
+  <div class="dlg-body">
+    <div class="dlg-title" id="membersTitle">Członkowie</div>
+    <div class="friend-list" id="membersList" style="max-height:55vh; overflow-y:auto;"></div>
+    <div class="dlg-actions">
+      <button id="membersCloseBtn">Zamknij</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="viewProfileDialog">
+  <div class="dlg-body" style="text-align:center;">
+    <img id="viewProfileAvatar" class="avatar-img" style="width:72px; height:72px; margin:0 auto 12px;" alt="">
+    <div class="dlg-title" id="viewProfileName" style="margin-bottom:4px;"></div>
+    <div class="dlg-actions">
+      <button id="viewProfileCloseBtn">Zamknij</button>
     </div>
   </div>
 </dialog>
@@ -827,6 +864,8 @@ function showAuthScreen(){
   document.getElementById("notebookScreen").classList.add("hidden");
   document.querySelector(".footer-bar").classList.add("hidden");
   hideTabBar();
+  subscribeToNotebook(null);
+  if(globalChannel){ sb.removeChannel(globalChannel); globalChannel = null; }
 }
 
 sb.auth.onAuthStateChange((event, session) => {
@@ -977,16 +1016,30 @@ function dbErr(err, fallbackMsg){
   toast(`${fallbackMsg}${err && err.message ? ": " + err.message : ""}`, "error");
 }
 
+// niebrzydka obsługa "tabela/kolumna jeszcze nie istnieje" — zdarza się, gdy ktoś nie uruchomił jeszcze nowej
+// migracji. PostgREST zwraca to jako PGRST205/PGRST204 z komunikatem "Could not find ... in the schema cache",
+// nie jako surowy błąd Postgresa (42P01 / "does not exist") — trzeba łapać oba warianty.
+function isMissingTableError(err){
+  if(!err) return false;
+  if(err.code === "42P01" || err.code === "PGRST205" || err.code === "PGRST204") return true;
+  return /does not exist|could not find the table|schema cache/i.test(err.message || "");
+}
+
 async function loadFromServer(){
   const { data: notebooks, error: nbErr } = await sb.from("notebooks").select("*").order("created_at");
   if(nbErr){ dbErr(nbErr, "Błąd wczytywania notatników"); return; }
 
   const nbIds = notebooks.map(n => n.id);
-  let categories = [], items = [];
+  let categories = [], items = [], members = [];
   if(nbIds.length){
-    const { data: catData, error: catErr } = await sb.from("categories").select("*").in("notebook_id", nbIds).order("position");
-    if(catErr) dbErr(catErr, "Błąd wczytywania kategorii");
-    categories = catData || [];
+    const [catRes, memRes] = await Promise.all([
+      sb.from("categories").select("*").in("notebook_id", nbIds).order("position"),
+      sb.from("notebook_members").select("*").in("notebook_id", nbIds)
+    ]);
+    if(catRes.error) dbErr(catRes.error, "Błąd wczytywania kategorii");
+    categories = catRes.data || [];
+    if(memRes.error) dbErr(memRes.error, "Błąd wczytywania członków notatnika");
+    members = memRes.data || [];
     const catIds = categories.map(c => c.id);
     if(catIds.length){
       const { data: itemData, error: itemErr } = await sb.from("items").select("*").in("category_id", catIds).order("position");
@@ -1000,12 +1053,25 @@ async function loadFromServer(){
   notebooks.forEach(n => {
     const nb = {
       id: n.id, name: n.name, color: n.color || "", archived: n.archived,
-      isOwner: n.owner_id === currentUser.id, shareCode: n.share_code,
+      isOwner: n.owner_id === currentUser.id, ownerId: n.owner_id, shareCode: n.share_code,
       updatedAt: n.updated_at ? new Date(n.updated_at).getTime() : null,
+      members: [], memberCount: 1, myRole: n.owner_id === currentUser.id ? "owner" : "editor",
       categories: []
     };
     state.notebooks.push(nb);
     nbById[nb.id] = nb;
+  });
+  members.forEach(m => {
+    const nb = nbById[m.notebook_id];
+    if(!nb) return;
+    nb.members.push({ userId: m.user_id, role: m.role || "editor" });
+  });
+  state.notebooks.forEach(nb => {
+    nb.memberCount = 1 + nb.members.length;
+    if(!nb.isOwner){
+      const mine = nb.members.find(m => m.userId === currentUser.id);
+      nb.myRole = mine ? mine.role : "editor";
+    }
   });
   const catById = {};
   categories.forEach(c => {
@@ -1021,6 +1087,17 @@ async function loadFromServer(){
     cat.items.push({ id: it.id, text: it.text, note: it.note || "", qty: it.qty || "", priority: it.priority });
     if(it.checked) state.checked[it.id] = true;
   });
+}
+
+async function refreshMembership(nb){
+  const { data, error } = await sb.from("notebook_members").select("*").eq("notebook_id", nb.id);
+  if(error){ dbErr(error, "Błąd odświeżania członków notatnika"); return; }
+  nb.members = (data || []).map(m => ({ userId: m.user_id, role: m.role || "editor" }));
+  nb.memberCount = 1 + nb.members.length;
+  if(!nb.isOwner){
+    const mine = nb.members.find(m => m.userId === currentUser.id);
+    nb.myRole = mine ? mine.role : "editor";
+  }
 }
 
 // odświeża tylko kategorie/pozycje jednego notatnika (do realtime i po dołączeniu przez kod)
@@ -1185,6 +1262,18 @@ function nbStats(nb){
   return { total, done, pct: total ? Math.round(done/total*100) : 0 };
 }
 
+function peopleLabel(n){
+  if(n === 1) return "1 osoba";
+  const mod10 = n % 10, mod100 = n % 100;
+  if(mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return `${n} osoby`;
+  return `${n} osób`;
+}
+
+function refreshListScreens(){
+  if(currentTab === "mine") renderMenu();
+  else if(currentTab === "shared") renderShared();
+}
+
 /* ======================= EKSPORT / IMPORT ======================= */
 function doExport(){
   const data = JSON.stringify(state, null, 2);
@@ -1301,13 +1390,14 @@ function buildNbCard(nb){
   card.tabIndex = 0;
   if(nb.color) card.style.setProperty("--tab-color", nb.color);
   const editedLabel = nb.updatedAt ? `· edytowano ${relativeTime(nb.updatedAt)}` : "";
+  const peopleLabelStr = nb.memberCount > 1 ? ` · ${peopleLabel(nb.memberCount)}` : "";
   card.innerHTML = `
     <label class="nb-tab color-label" title="Kolor notatnika" aria-label="Zmień kolor notatnika ${nb.name}">
       <input type="color" class="color-input" value="${nb.color || '#5ea1ff'}">
     </label>
     <button class="card-menu-btn popover-trigger" title="Więcej opcji" aria-label="Więcej opcji dla notatnika ${nb.name}">⋯</button>
     <div class="nb-name">${nb.name}</div>
-    <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione ${editedLabel}</div>
+    <div class="nb-meta">${nb.categories.length} kategorii · ${s.done}/${s.total} zrobione${peopleLabelStr} ${editedLabel}</div>
     <div class="progress-bar"><div class="progress-fill" style="width:${s.pct}%${nb.color ? `; background:${nb.color}` : ""}"></div></div>
   `;
   card.addEventListener("click", (e) => {
@@ -1329,17 +1419,20 @@ function buildNbCard(nb){
     nb.color = e.target.value;
     touchNotebook(nb);
     dbUpdateNotebook(nb.id, { color: nb.color });
-    renderMenu();
+    refreshListScreens();
   });
   card.querySelector(".nb-tab").addEventListener("click", (e) => e.stopPropagation());
 
   card.querySelector(".card-menu-btn").addEventListener("click", (e) => {
     e.stopPropagation();
-    const items = [
-      { label:"✎ Zmień nazwę", onClick: async () => {
+    const items = [];
+    if(nb.myRole !== "viewer"){
+      items.push({ label:"✎ Zmień nazwę", onClick: async () => {
         const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
-        if(v){ nb.name = v; touchNotebook(nb); dbUpdateNotebook(nb.id, { name: v }); renderMenu(); }
-      }},
+        if(v){ nb.name = v; touchNotebook(nb); dbUpdateNotebook(nb.id, { name: v }); refreshListScreens(); }
+      }});
+    }
+    items.push(
       { label:"⧉ Duplikuj notatnik", onClick: async () => {
         const name = await customPrompt("Nazwa dla kopii notatnika:", nb.name + " (kopia)", { title:"Duplikuj notatnik" });
         if(!name) return;
@@ -1350,8 +1443,9 @@ function buildNbCard(nb){
         state.notebooks.push(built);
         renderMenu();
         toast("Utworzono kopię notatnika.", "success");
-      }}
-    ];
+      }},
+      { label:"Członkowie", icon: USER_SVG, onClick: () => showMembersDialog(nb) }
+    );
     if(nb.isOwner){
       items.push(
         { label:"Udostępnij", icon: LINK_SVG, onClick: () => showShareDialog(nb) },
@@ -1392,7 +1486,7 @@ function buildNbCard(nb){
           const { error } = await sb.from("notebook_members").delete().eq("notebook_id", nb.id).eq("user_id", currentUser.id);
           if(error){ dbErr(error, "Nie udało się opuścić notatnika"); return; }
           state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
-          renderMenu();
+          renderShared();
           toast(`Opuszczono „${nb.name}”.`, "success");
         }}
       );
@@ -1405,8 +1499,8 @@ function buildNbCard(nb){
 function renderMenu(){
   const grid = document.getElementById("menuGrid");
   grid.innerHTML = "";
-  const active = state.notebooks.filter(nb => !nb.archived);
-  const archived = state.notebooks.filter(nb => nb.archived);
+  const active = state.notebooks.filter(nb => !nb.archived && nb.isOwner);
+  const archived = state.notebooks.filter(nb => nb.archived && nb.isOwner);
 
   active.forEach(nb => grid.appendChild(buildNbCard(nb)));
 
@@ -1460,13 +1554,12 @@ async function openNotebook(id){
   document.getElementById("profileScreen").classList.add("hidden");
   document.getElementById("notebookScreen").classList.remove("hidden");
   hideTabBar();
-  ["expandAll","collapseAll","moreActionsBtn"].forEach(x => document.getElementById(x).classList.remove("hidden"));
   renderNotebook();
   subscribeToNotebook(getNotebook(id));
   // dociągnij świeże dane z serwera (na wypadek zmian od współedytorów sprzed otwarcia notatnika)
   const nb = getNotebook(id);
   if(nb){
-    await reloadNotebookData(nb);
+    await Promise.all([reloadNotebookData(nb), refreshMembership(nb)]);
     if(state.activeId === id) renderNotebook();
   }
 }
@@ -1538,8 +1631,11 @@ function updateFilterCounts(nb){
 function renderNotebook(){
   const nb = getNotebook(state.activeId);
   if(!nb){ backToMenu(); return; }
+  const readOnly = nb.myRole === "viewer";
 
   document.getElementById("nbTitleText").textContent = nb.name;
+  document.getElementById("nbRoleBadge").classList.toggle("hidden", !readOnly);
+  document.getElementById("notebookScreen").classList.toggle("read-only", readOnly);
   document.getElementById("notebookScreen").style.setProperty("--accent", nb.color || "");
   const pf = document.getElementById("progressFill");
   if(nb.color){ pf.style.background = nb.color; pf.style.animation = "none"; }
@@ -1547,6 +1643,11 @@ function renderNotebook(){
   document.getElementById("utmNote").classList.toggle("hidden", !nb.isUtm);
   document.getElementById("archiveNbBtn").classList.toggle("hidden", !nb.isOwner);
   document.getElementById("deleteNbBtn").classList.toggle("hidden", !nb.isOwner);
+  document.getElementById("resetAll").classList.toggle("hidden", readOnly);
+  document.getElementById("deleteCheckedBtn").classList.toggle("hidden", readOnly);
+  document.getElementById("expandAll").classList.toggle("hidden", readOnly);
+  document.getElementById("collapseAll").classList.toggle("hidden", readOnly);
+  document.getElementById("moreActionsBtn").classList.remove("hidden");
   updateFilterCounts(nb);
 
   const root = document.getElementById("categories");
@@ -1568,6 +1669,7 @@ function renderNotebook(){
       <div class="chev">▼</div>`;
     header.querySelector(".cat-title span").textContent = cat.name;
     header.addEventListener("click", (e) => {
+      if(readOnly) return;
       if(e.target.closest(".card-menu-btn") || e.target.closest(".drag-handle")) return;
       cat.collapsed = !cat.collapsed;
       catEl.classList.toggle("collapsed", cat.collapsed);
@@ -1665,7 +1767,7 @@ function renderNotebook(){
         const visIdx = items.indexOf(it);
         row.innerHTML = `
           <span class="item-drag-handle" title="Przeciągnij, by zmienić kolejność" aria-label="Przeciągnij pozycję">⠿</span>
-          <span class="check-wrap"><input type="checkbox" id="${it.id}" ${state.checked[it.id] ? "checked" : ""} aria-label="${it.text}"></span>
+          <span class="check-wrap"><input type="checkbox" id="${it.id}" ${state.checked[it.id] ? "checked" : ""} ${readOnly ? "disabled" : ""} aria-label="${it.text}"></span>
           <div class="item-body">
             <label for="${it.id}"></label>
             <div class="item-note"></div>
@@ -1900,7 +2002,7 @@ document.getElementById("backBtn").onclick = backToMenu;
 
 document.getElementById("nbEditBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
-  if(!nb) return;
+  if(!nb || nb.myRole === "viewer") return;
   const v = await customPrompt("Nowa nazwa notatnika:", nb.name, { title:"Zmień nazwę" });
   if(v){ nb.name = v; touchNotebook(nb); dbUpdateNotebook(nb.id, { name: v }); renderNotebook(); }
 };
@@ -1953,7 +2055,7 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
   e.target.value = ""; // to jest akcja jednorazowa, nie tryb stały
   if(!mode) return;
   const nb = getNotebook(state.activeId);
-  if(!nb) return;
+  if(!nb || nb.myRole === "viewer") return;
   const snapshot = nb.categories.map(cat => ({ id: cat.id, items: cat.items.slice() }));
   nb.categories.forEach(cat => {
     if(mode === "az"){
@@ -1982,7 +2084,7 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
 
 document.getElementById("addCatBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
-  if(!nb) return;
+  if(!nb || nb.myRole === "viewer") return;
   const input = document.getElementById("newCatInput");
   const name = input.value.trim();
   if(!name) return;
@@ -1997,14 +2099,14 @@ document.getElementById("newCatInput").addEventListener("keydown", e => { if(e.k
 
 document.getElementById("expandAll").onclick = () => {
   const nb = getNotebook(state.activeId);
-  if(!nb) return;
+  if(!nb || nb.myRole === "viewer") return;
   nb.categories.forEach(c => c.collapsed = false);
   document.querySelectorAll(".cat").forEach(c => c.classList.remove("collapsed"));
   dbBulkSetCategoriesCollapsed(nb, false);
 };
 document.getElementById("collapseAll").onclick = () => {
   const nb = getNotebook(state.activeId);
-  if(!nb) return;
+  if(!nb || nb.myRole === "viewer") return;
   nb.categories.forEach(c => c.collapsed = true);
   document.querySelectorAll(".cat").forEach(c => c.classList.add("collapsed"));
   dbBulkSetCategoriesCollapsed(nb, true);
@@ -2024,9 +2126,15 @@ moreActionsMenuEl.addEventListener("click", (e) => {
   if(e.target.tagName === "BUTTON") closePopover();
 });
 
-document.getElementById("resetAll").onclick = async () => {
+document.getElementById("membersBtn").onclick = () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
+  showMembersDialog(nb);
+};
+
+document.getElementById("resetAll").onclick = async () => {
+  const nb = getNotebook(state.activeId);
+  if(!nb || nb.myRole === "viewer") return;
   const ok = await customConfirm("Wyczyścić wszystkie zaznaczenia w tym notatniku? (pozycje zostaną)", { title:"Wyczyścić zaznaczenia?", okLabel:"Wyczyść" });
   if(!ok) return;
   const allIds = [];
@@ -2036,7 +2144,7 @@ document.getElementById("resetAll").onclick = async () => {
 };
 document.getElementById("deleteCheckedBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
-  if(!nb) return;
+  if(!nb || nb.myRole === "viewer") return;
   let count = 0;
   nb.categories.forEach(cat => cat.items.forEach(it => { if(state.checked[it.id]) count++; }));
   if(count === 0){ toast("Nie masz żadnych zaznaczonych pozycji."); return; }
@@ -2220,6 +2328,71 @@ async function showInviteFriendDialog(nb){
 }
 document.getElementById("inviteFriendCloseBtn").addEventListener("click", () => document.getElementById("inviteFriendDialog").close());
 
+const ROLE_LABELS = { owner:"Właściciel", editor:"Może edytować", viewer:"Tylko odczyt" };
+
+function showProfileDialog(profile){
+  document.getElementById("viewProfileAvatar").src = avatarSrc(profile);
+  document.getElementById("viewProfileName").textContent = (profile && profile.username) || "(usunięty użytkownik)";
+  document.getElementById("viewProfileDialog").showModal();
+}
+document.getElementById("viewProfileCloseBtn").addEventListener("click", () => document.getElementById("viewProfileDialog").close());
+
+async function showMembersDialog(nb){
+  const dlg = document.getElementById("membersDialog");
+  const list = document.getElementById("membersList");
+  document.getElementById("membersTitle").textContent = `Członkowie „${nb.name}” (${nb.memberCount})`;
+  list.innerHTML = `<div class="sub">Wczytywanie...</div>`;
+  dlg.showModal();
+
+  const rows = [{ userId: nb.ownerId, role: "owner" }, ...nb.members];
+  const ids = rows.map(r => r.userId);
+  const { data: profiles, error } = await sb.from("profiles").select("id,username,avatar_url").in("id", ids);
+  if(error){ dbErr(error, "Błąd wczytywania członków"); return; }
+  const profileById = {};
+  (profiles || []).forEach(p => profileById[p.id] = p);
+
+  list.innerHTML = "";
+  rows.forEach(m => {
+    const profile = profileById[m.userId];
+    const row = buildFriendRow(profile, "", ROLE_LABELS[m.role] || "");
+    const nameEl = row.querySelector(".friend-name");
+    nameEl.style.cursor = "pointer";
+    nameEl.addEventListener("click", () => showProfileDialog(profile));
+    if(nb.isOwner && m.role !== "owner"){
+      const select = document.createElement("select");
+      select.className = "sort-select";
+      select.innerHTML = `<option value="editor">Może edytować</option><option value="viewer">Tylko odczyt</option>`;
+      select.value = m.role;
+      select.addEventListener("change", async () => {
+        const newRole = select.value;
+        const { error: roleErr } = await sb.from("notebook_members").update({ role: newRole }).eq("notebook_id", nb.id).eq("user_id", m.userId);
+        if(roleErr){ dbErr(roleErr, "Nie udało się zmienić roli"); select.value = m.role; return; }
+        m.role = newRole;
+        const sub = nameEl.querySelector(".sub");
+        if(sub) sub.textContent = ROLE_LABELS[newRole];
+        toast(`Zmieniono rolę ${profile ? profile.username : "użytkownika"}.`, "success");
+      });
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "action-btn del-btn";
+      removeBtn.textContent = "✕";
+      removeBtn.title = "Usuń z notatnika";
+      removeBtn.addEventListener("click", async () => {
+        const ok = await customConfirm(`Usunąć ${profile ? profile.username : "tę osobę"} z notatnika?`, { title:"Usunąć z notatnika?" });
+        if(!ok) return;
+        const { error: delErr } = await sb.from("notebook_members").delete().eq("notebook_id", nb.id).eq("user_id", m.userId);
+        if(delErr){ dbErr(delErr, "Nie udało się usunąć członka"); return; }
+        nb.members = nb.members.filter(x => x.userId !== m.userId);
+        nb.memberCount = 1 + nb.members.length;
+        refreshListScreens();
+        showMembersDialog(nb);
+      });
+      row.querySelector(".friend-actions").append(select, removeBtn);
+    }
+    list.appendChild(row);
+  });
+}
+document.getElementById("membersCloseBtn").addEventListener("click", () => document.getElementById("membersDialog").close());
+
 function extractJoinCode(input){
   input = input.trim();
   try{
@@ -2236,7 +2409,7 @@ async function joinNotebookByCode(code){
     const { error } = await sb.rpc("join_notebook", { code });
     if(error) throw error;
     await loadFromServer();
-    renderMenu();
+    refreshListScreens();
     toast("Dołączono do notatnika.", "success");
   }catch(err){
     toast("Nie udało się dołączyć — sprawdź kod lub link zaproszenia.", "error");
@@ -2292,9 +2465,12 @@ async function loadProfile(){
   if(error){ dbErr(error, "Nie udało się wczytać profilu"); return; }
   currentProfile = data;
 }
-async function dbUpdateProfile(fields){
+async function dbUpdateProfile(fields, onError){
   const { error } = await sb.from("profiles").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", currentUser.id);
-  if(error){ dbErr(error, "Nie udało się zapisać profilu"); return false; }
+  if(error){
+    if(onError) onError(error); else dbErr(error, "Nie udało się zapisać profilu");
+    return false;
+  }
   Object.assign(currentProfile, fields);
   return true;
 }
@@ -2344,7 +2520,13 @@ document.getElementById("saveUsernameBtn").addEventListener("click", async () =>
     toast("Nick może mieć 3-20 znaków: litery, cyfry, kropkę lub podkreślnik.", "error");
     return;
   }
-  const ok = await dbUpdateProfile({ username: v });
+  const ok = await dbUpdateProfile({ username: v }, (error) => {
+    if(error.code === "23505"){
+      toast("Ten nick jest już zajęty przez kogoś innego — wybierz inny.", "error");
+    } else {
+      dbErr(error, "Nie udało się zapisać profilu");
+    }
+  });
   if(ok) toast("Zapisano nick.", "success");
 });
 
@@ -2431,9 +2613,13 @@ async function renderProfile(){
   const nbInvitesSection = document.getElementById("notebookInvitesSection");
   const nbInvitesList = document.getElementById("notebookInvitesList");
   nbInvitesList.innerHTML = "";
-  const { data: nbInvites, error: nbInvitesErr } = await sb.from("notebook_invites").select("*").eq("to_user_id", currentUser.id);
-  if(nbInvitesErr){ dbErr(nbInvitesErr, "Błąd wczytywania zaproszeń do notatników"); }
-  const invites = nbInvites || [];
+  const [nbInvitesRes, friendsData] = await Promise.all([
+    sb.from("notebook_invites").select("*").eq("to_user_id", currentUser.id),
+    loadFriendsData()
+  ]);
+  const { data: nbInvites, error: nbInvitesErr } = nbInvitesRes;
+  if(nbInvitesErr && !isMissingTableError(nbInvitesErr)){ dbErr(nbInvitesErr, "Błąd wczytywania zaproszeń do notatników"); }
+  const invites = nbInvitesErr ? [] : (nbInvites || []);
   nbInvitesSection.classList.toggle("hidden", invites.length === 0);
   if(invites.length){
     const fromIds = [...new Set(invites.map(i => i.from_user_id))];
@@ -2472,37 +2658,45 @@ async function renderProfile(){
     });
   }
 
-  const { friends, incoming, outgoing } = await loadFriendsData();
+  const { friends, incoming, outgoing } = friendsData;
 
   const friendIds = new Set(friends.map(f => f.userId));
   const pendingIds = new Set([...incoming.map(r => r.sender_id), ...outgoing.map(r => r.receiver_id)]);
-  const suggestedSection = document.getElementById("suggestedFriendsSection");
   const suggestedList = document.getElementById("suggestedFriendsList");
+  const showSuggestedBtn = document.getElementById("showSuggestedBtn");
   suggestedList.innerHTML = "";
-  const suggestions = await loadSuggestedFriends();
-  suggestedSection.classList.toggle("hidden", suggestions.length === 0);
-  suggestions.forEach(s => {
-    const row = buildFriendRow(s.profile, "", mutualFriendsLabel(s.mutual));
-    const btn = document.createElement("button");
-    if(friendIds.has(s.profile.id)){
-      btn.textContent = "Już znajomi";
-      btn.disabled = true;
-    } else if(pendingIds.has(s.profile.id)){
-      btn.textContent = "Oczekuje";
-      btn.disabled = true;
-    } else {
-      btn.className = "primary";
-      btn.textContent = "Dodaj";
-      btn.onclick = async () => {
-        const { error: reqErr } = await sb.from("friend_requests").insert({ sender_id: currentUser.id, receiver_id: s.profile.id });
-        if(reqErr){ dbErr(reqErr, "Nie udało się wysłać zaproszenia"); return; }
-        toast(`Wysłano zaproszenie do ${s.profile.username}.`, "success");
-        btn.textContent = "Oczekuje"; btn.disabled = true;
-      };
-    }
-    row.querySelector(".friend-actions").appendChild(btn);
-    suggestedList.appendChild(row);
-  });
+  showSuggestedBtn.classList.remove("hidden");
+  showSuggestedBtn.disabled = false;
+  showSuggestedBtn.textContent = "Pokaż propozycje";
+  showSuggestedBtn.onclick = async () => {
+    showSuggestedBtn.disabled = true;
+    showSuggestedBtn.textContent = "Wczytywanie...";
+    const suggestions = await loadSuggestedFriends();
+    showSuggestedBtn.classList.add("hidden");
+    suggestedList.innerHTML = suggestions.length ? "" : `<div class="sub">Brak propozycji — może już znasz wszystkich?</div>`;
+    suggestions.forEach(s => {
+      const row = buildFriendRow(s.profile, "", mutualFriendsLabel(s.mutual));
+      const btn = document.createElement("button");
+      if(friendIds.has(s.profile.id)){
+        btn.textContent = "Już znajomi";
+        btn.disabled = true;
+      } else if(pendingIds.has(s.profile.id)){
+        btn.textContent = "Oczekuje";
+        btn.disabled = true;
+      } else {
+        btn.className = "primary";
+        btn.textContent = "Dodaj";
+        btn.onclick = async () => {
+          const { error: reqErr } = await sb.from("friend_requests").insert({ sender_id: currentUser.id, receiver_id: s.profile.id });
+          if(reqErr){ dbErr(reqErr, "Nie udało się wysłać zaproszenia"); return; }
+          toast(`Wysłano zaproszenie do ${s.profile.username}.`, "success");
+          btn.textContent = "Oczekuje"; btn.disabled = true;
+        };
+      }
+      row.querySelector(".friend-actions").appendChild(btn);
+      suggestedList.appendChild(row);
+    });
+  };
 
   const incomingSection = document.getElementById("incomingRequestsSection");
   const incomingList = document.getElementById("incomingRequestsList");
@@ -2607,6 +2801,7 @@ function subscribeToNotebook(nb){
   realtimeChannel = sb.channel(`notebook-${nb.id}`)
     .on("postgres_changes", { event:"*", schema:"public", table:"categories", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
     .on("postgres_changes", { event:"*", schema:"public", table:"items" }, () => refreshActiveNotebook())
+    .on("postgres_changes", { event:"*", schema:"public", table:"notebook_members", filter:`notebook_id=eq.${nb.id}` }, () => refreshActiveNotebook())
     .subscribe();
 }
 let refreshPending = false;
@@ -2614,9 +2809,31 @@ async function refreshActiveNotebook(){
   const nb = getNotebook(state.activeId);
   if(!nb || refreshPending) return;
   refreshPending = true;
-  await reloadNotebookData(nb);
+  await Promise.all([reloadNotebookData(nb), refreshMembership(nb)]);
   renderNotebook();
   refreshPending = false;
+}
+
+// lekka globalna subskrypcja — żeby lista notatników/zaproszeń/znajomych odświeżała się
+// sama, bez ręcznego przeładowania strony, gdy zmiana przyjdzie od kogoś innego
+let globalChannel = null;
+function subscribeGlobal(){
+  if(globalChannel){ sb.removeChannel(globalChannel); globalChannel = null; }
+  globalChannel = sb.channel("global-updates")
+    .on("postgres_changes", { event:"*", schema:"public", table:"notebooks" }, () => refreshTopLevel())
+    .on("postgres_changes", { event:"*", schema:"public", table:"notebook_members" }, () => refreshTopLevel())
+    .on("postgres_changes", { event:"*", schema:"public", table:"notebook_invites", filter:`to_user_id=eq.${currentUser.id}` }, () => { if(currentTab === "profile") renderProfile(); })
+    .on("postgres_changes", { event:"*", schema:"public", table:"friend_requests" }, () => { if(currentTab === "profile") renderProfile(); })
+    .subscribe();
+}
+let topLevelRefreshPending = false;
+async function refreshTopLevel(){
+  if(state.activeId || topLevelRefreshPending) return;
+  topLevelRefreshPending = true;
+  await loadFromServer();
+  if(currentTab === "mine") renderMenu();
+  else if(currentTab === "shared") renderShared();
+  topLevelRefreshPending = false;
 }
 
 /* ======================= MIGRACJA LOKALNYCH DANYCH ======================= */
@@ -2648,6 +2865,7 @@ async function boot(){
   state.activeId = null;
   showTabBar();
   showTab("mine");
+  subscribeGlobal();
 }
 </script>
 
