@@ -618,8 +618,8 @@
       </div>
       <div class="menu-top-actions">
         <button id="globalSearchBtn1" class="theme-toggle" title="Szukaj we wszystkich notatnikach" aria-label="Szukaj we wszystkich notatnikach"></button>
-        <button id="menuOptionsBtn" class="theme-toggle popover-trigger" title="Więcej opcji" aria-label="Więcej opcji: eksport i import">⋯</button>
         <button id="themeToggleBtn" class="theme-toggle" title="Przełącz tryb jasny/ciemny" aria-label="Przełącz tryb jasny/ciemny"></button>
+        <button id="menuOptionsBtn" class="theme-toggle popover-trigger" title="Więcej opcji" aria-label="Więcej opcji: eksport i import">⋯</button>
       </div>
     </div>
   </div>
@@ -674,24 +674,6 @@
 
   <div id="offlineNotice" class="note hidden">Pracujesz w trybie offline. Dane są zapisywane tylko na tym urządzeniu, bez synchronizacji i udostępniania. Kliknij ikonę wyjścia u góry, żeby założyć konto (albo się zalogować) i przenieść te dane.</div>
 
-  <div class="section-heading">Wygląd</div>
-  <div class="settings-row">
-    <span class="settings-label">Motyw</span>
-    <div class="segmented" id="themeSegmented">
-      <button type="button" data-theme="light">Jasny</button>
-      <button type="button" data-theme="dark">Ciemny</button>
-      <button type="button" data-theme="auto">Systemowy</button>
-    </div>
-  </div>
-  <div class="settings-row">
-    <span class="settings-label">Rozmiar tekstu</span>
-    <div class="segmented" id="textSizeSegmented">
-      <button type="button" data-scale="0.92">Mały</button>
-      <button type="button" data-scale="1">Normalny</button>
-      <button type="button" data-scale="1.12">Duży</button>
-    </div>
-  </div>
-
   <div id="accountSection">
     <div class="profile-card">
       <label class="avatar-label" title="Zmień zdjęcie profilowe">
@@ -732,6 +714,24 @@
     <div class="section-heading">Znajomi</div>
     <div id="friendsList" class="friend-list"></div>
     <div class="sub hidden" id="friendsEmptyState">Nie masz jeszcze żadnych znajomych — znajdź ich po nicku powyżej.</div>
+  </div>
+
+  <div class="section-heading">Wygląd</div>
+  <div class="settings-row">
+    <span class="settings-label">Motyw</span>
+    <div class="segmented" id="themeSegmented">
+      <button type="button" data-theme="light">Jasny</button>
+      <button type="button" data-theme="dark">Ciemny</button>
+      <button type="button" data-theme="auto">Systemowy</button>
+    </div>
+  </div>
+  <div class="settings-row">
+    <span class="settings-label">Rozmiar tekstu</span>
+    <div class="segmented" id="textSizeSegmented">
+      <button type="button" data-scale="0.92">Mały</button>
+      <button type="button" data-scale="1">Normalny</button>
+      <button type="button" data-scale="1.12">Duży</button>
+    </div>
   </div>
 </div>
 
@@ -827,11 +827,12 @@
 </div>
 
 <div class="popover-menu hidden" id="moreActionsMenu">
-  <button id="membersBtn">Członkowie</button>
-  <div class="menu-divider"></div>
+  <button id="membersBtn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Członkowie</button>
+  <div class="menu-divider" id="membersBtnDivider"></div>
   <button id="resetAll">Wyczyść zaznaczenia</button>
   <button class="danger-item" id="deleteCheckedBtn">Usuń zaznaczone</button>
   <button id="archiveNbBtn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> Archiwizuj</button>
+  <button id="trashNbBtn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg> Kosz</button>
   <div class="menu-divider"></div>
   <button class="danger-item" id="deleteNbBtn">Usuń ten notatnik</button>
 </div>
@@ -2518,7 +2519,11 @@ function renderNotebook(){
   document.getElementById("notebookScreen").style.setProperty("--accent", nb.color || "");
   document.getElementById("utmNote").classList.toggle("hidden", !nb.isUtm);
   document.getElementById("archiveNbBtn").classList.toggle("hidden", !nb.isOwner);
+  document.getElementById("trashNbBtn").classList.toggle("hidden", !nb.isOwner);
   document.getElementById("deleteNbBtn").classList.toggle("hidden", !nb.isOwner);
+  // "Członkowie" nie ma sensu, dopóki nikt poza właścicielem nie ma dostępu (patrz: karta notatnika)
+  document.getElementById("membersBtn").classList.toggle("hidden", !nb.isShared);
+  document.getElementById("membersBtnDivider").classList.toggle("hidden", !nb.isShared);
   document.getElementById("moreActionsBtn").classList.remove("hidden");
 
   const isNote = nb.type === "note";
@@ -2885,6 +2890,15 @@ function renderNotebook(){
     renderItems();
     refreshCount();
 
+    // przy wyszukiwaniu chowamy całe kategorie bez trafień (nie tylko pozycje wewnątrz) —
+    // inaczej lista i tak pokazuje wszystkie puste nagłówki kategorii, co utrudnia skanowanie
+    // wyników. Kategoria zostaje w DOM (tylko ukryta klasą), a nie pomijana przy appendChild —
+    // makeSortable niżej liczy nową kolejność z DOM-owych dzieci `root`, więc pominięcie jej
+    // fizycznie wyrzuciłoby kategorię z notatnika przy najbliższym przeciągnięciu w trakcie wyszukiwania.
+    const catNameMatches = q && cat.name.toLowerCase().includes(q);
+    const catHasMatch = !q || catNameMatches || cat.items.some(it => it.text.toLowerCase().includes(q) || (it.note||"").toLowerCase().includes(q));
+    catEl.classList.toggle("hidden", !catHasMatch);
+
     catEl.appendChild(header);
     catEl.appendChild(itemsEl);
     root.appendChild(catEl);
@@ -3090,6 +3104,7 @@ document.getElementById("membersBtn").onclick = () => {
   if(!nb) return;
   showMembersDialog(nb);
 };
+document.getElementById("trashNbBtn").onclick = () => showTrashDialog();
 
 document.getElementById("resetAll").onclick = async () => {
   const nb = getNotebook(state.activeId);
@@ -3154,17 +3169,16 @@ document.getElementById("archiveNbBtn").onclick = () => {
 document.getElementById("deleteNbBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
-  const ok = await customConfirm(`Usunąć cały notatnik „${nb.name}”?`, { title:"Usunąć notatnik?" });
+  const ok = await customConfirm(`Przenieść notatnik „${nb.name}” do kosza? Będzie tam czekał, aż go stamtąd usuniesz na stałe.`, { title:"Usunąć notatnik?", okLabel:"Usuń" });
   if(!ok) return;
-  const idxAtDelete = state.notebooks.indexOf(nb);
-  const tree = extractNotebookTree(nb);
-  state.notebooks = state.notebooks.filter(n => n.id !== nb.id);
-  dbDeleteNotebook(nb.id);
+  nb.deletedAt = Date.now();
+  touchNotebook(nb);
+  dbUpdateNotebook(nb.id, { deleted_at: new Date().toISOString() });
   backToMenu();
-  toast(`Usunięto „${nb.name}”.`, "", async () => {
-    const built = await dbInsertNotebookTree(tree);
-    if(!built) return;
-    state.notebooks.splice(Math.min(idxAtDelete, state.notebooks.length), 0, built);
+  toast(`Przeniesiono „${nb.name}” do kosza.`, "", () => {
+    nb.deletedAt = null;
+    touchNotebook(nb);
+    dbUpdateNotebook(nb.id, { deleted_at: null });
     renderMenu();
   });
 };
