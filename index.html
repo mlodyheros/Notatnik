@@ -576,6 +576,9 @@
   #authForm .dlg-input{margin-bottom:0;}
   .auth-submit{width:100%; justify-content:center; margin-top:4px;}
   .auth-switch{width:100%; justify-content:center; margin-top:16px;}
+  .auth-offline-divider{text-align:center; color:var(--muted); font-size:calc(11.5px * var(--text-scale)); margin:16px 0 4px; text-transform:uppercase; letter-spacing:.04em;}
+  #offlineModeBtn{width:100%; justify-content:center;}
+  .auth-offline-hint{text-align:center; margin:8px 0 0; font-size:calc(11.5px * var(--text-scale));}
   .auth-error{
     background:var(--danger-soft); color:var(--danger); border-radius:var(--radius-sm);
     padding:9px 11px; font-size:calc(12.5px * var(--text-scale)); line-height:1.4;
@@ -599,6 +602,9 @@
       <button type="submit" class="primary auth-submit" id="authSubmitBtn">Zaloguj się</button>
     </form>
     <button type="button" class="text-btn auth-switch" id="authSwitchBtn">Nie masz konta? Zarejestruj się</button>
+    <div class="auth-offline-divider">lub</div>
+    <button type="button" class="text-btn" id="offlineModeBtn">Kontynuuj bez konta (offline)</button>
+    <div class="sub auth-offline-hint">Dane zostaną zapisane tylko na tym urządzeniu — bez synchronizacji i udostępniania. Będzie można później założyć konto i je przenieść.</div>
   </div>
 </div>
 
@@ -666,20 +672,7 @@
     </div>
   </div>
 
-  <div class="profile-card">
-    <label class="avatar-label" title="Zmień zdjęcie profilowe">
-      <img id="avatarPreview" class="avatar-img" alt="Zdjęcie profilowe">
-      <div class="avatar-edit-badge">✎</div>
-      <input type="file" id="avatarInput" accept="image/*" class="hidden">
-    </label>
-    <div class="profile-fields">
-      <div class="profile-username-row">
-        <input type="text" id="usernameInput" class="dlg-input" placeholder="Nick" style="margin-bottom:0;">
-        <button id="saveUsernameBtn">Zapisz</button>
-      </div>
-      <div class="sub" id="profileEmailLabel" style="margin-bottom:0;"></div>
-    </div>
-  </div>
+  <div id="offlineNotice" class="note hidden">Pracujesz w trybie offline — dane są zapisywane tylko na tym urządzeniu, bez synchronizacji i udostępniania. Kliknij ikonę wyjścia u góry, żeby założyć konto (albo się zalogować) i przenieść te dane.</div>
 
   <div class="section-heading">Wygląd</div>
   <div class="settings-row">
@@ -699,30 +692,47 @@
     </div>
   </div>
 
-  <div id="notebookInvitesSection" class="hidden">
-    <div class="section-heading">Zaproszenia do notatników</div>
-    <div id="notebookInvitesList" class="friend-list"></div>
+  <div id="accountSection">
+    <div class="profile-card">
+      <label class="avatar-label" title="Zmień zdjęcie profilowe">
+        <img id="avatarPreview" class="avatar-img" alt="Zdjęcie profilowe">
+        <div class="avatar-edit-badge">✎</div>
+        <input type="file" id="avatarInput" accept="image/*" class="hidden">
+      </label>
+      <div class="profile-fields">
+        <div class="profile-username-row">
+          <input type="text" id="usernameInput" class="dlg-input" placeholder="Nick" style="margin-bottom:0;">
+          <button id="saveUsernameBtn">Zapisz</button>
+        </div>
+        <div class="sub" id="profileEmailLabel" style="margin-bottom:0;"></div>
+      </div>
+    </div>
+
+    <div id="notebookInvitesSection" class="hidden">
+      <div class="section-heading">Zaproszenia do notatników</div>
+      <div id="notebookInvitesList" class="friend-list"></div>
+    </div>
+
+    <div class="section-heading">Dodaj znajomego</div>
+    <div class="add-cat-row">
+      <input type="text" id="friendSearchInput" placeholder="Wpisz nick znajomego..." aria-label="Szukaj znajomego po nicku">
+      <button id="friendSearchBtn">Szukaj</button>
+    </div>
+    <div id="friendSearchResults"></div>
+
+    <div class="section-heading">Proponowani znajomi</div>
+    <button id="showSuggestedBtn" class="text-btn" style="margin-bottom:10px;">Pokaż propozycje</button>
+    <div id="suggestedFriendsList" class="friend-list"></div>
+
+    <div id="incomingRequestsSection" class="hidden">
+      <div class="section-heading">Zaproszenia do znajomych</div>
+      <div id="incomingRequestsList" class="friend-list"></div>
+    </div>
+
+    <div class="section-heading">Znajomi</div>
+    <div id="friendsList" class="friend-list"></div>
+    <div class="sub hidden" id="friendsEmptyState">Nie masz jeszcze żadnych znajomych — znajdź ich po nicku powyżej.</div>
   </div>
-
-  <div class="section-heading">Dodaj znajomego</div>
-  <div class="add-cat-row">
-    <input type="text" id="friendSearchInput" placeholder="Wpisz nick znajomego..." aria-label="Szukaj znajomego po nicku">
-    <button id="friendSearchBtn">Szukaj</button>
-  </div>
-  <div id="friendSearchResults"></div>
-
-  <div class="section-heading">Proponowani znajomi</div>
-  <button id="showSuggestedBtn" class="text-btn" style="margin-bottom:10px;">Pokaż propozycje</button>
-  <div id="suggestedFriendsList" class="friend-list"></div>
-
-  <div id="incomingRequestsSection" class="hidden">
-    <div class="section-heading">Zaproszenia do znajomych</div>
-    <div id="incomingRequestsList" class="friend-list"></div>
-  </div>
-
-  <div class="section-heading">Znajomi</div>
-  <div id="friendsList" class="friend-list"></div>
-  <div class="sub hidden" id="friendsEmptyState">Nie masz jeszcze żadnych znajomych — znajdź ich po nicku powyżej.</div>
 </div>
 
 <!-- ====== NAWIGACJA DOLNA ====== -->
@@ -731,13 +741,13 @@
     <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
     Notatniki
   </button>
-  <button class="tab-btn" data-tab="shared">
+  <button class="tab-btn" data-tab="shared" id="sharedTabBtn">
     <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     Wspólne
   </button>
   <button class="tab-btn" data-tab="profile">
     <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    Profil
+    <span id="profileTabLabel">Profil</span>
   </button>
 </div>
 
@@ -801,8 +811,10 @@
     <textarea id="noteContentInput" class="note-textarea" placeholder="Zacznij pisać..."></textarea>
     <div id="notePreviewBox" class="note-preview hidden"></div>
     <div class="note-hint">Markdown: <code>**pogrubienie**</code>, <code># nagłówek</code>, <code>- lista</code>, <code>[tekst](link)</code></div>
-    <div class="note-label" style="margin-top:18px;">Załączniki</div>
-    <div id="noteAttachmentsWrap"></div>
+    <div id="noteAttachmentsSection">
+      <div class="note-label" style="margin-top:18px;">Załączniki</div>
+      <div id="noteAttachmentsWrap"></div>
+    </div>
   </div>
 </div>
 
@@ -1110,6 +1122,85 @@ function updateAppearanceSettingsUI(){
   });
 }
 
+const STORAGE_KEY = "notebooks-app-state-v2"; // localStorage: dane trybu offline ORAZ jednorazowa migracja sprzed logowania
+
+/* ======================= TRYB OFFLINE (bez konta) ======================= */
+// "online" = normalna praca przez Supabase; "offline" = wszystko trzyma się i zapisuje
+// tylko lokalnie w tej przeglądarce (localStorage), bez żadnych zapytań sieciowych.
+// Pod spodem to ten sam `state`/te same funkcje renderujące co tryb online — różnią się
+// tylko wnętrza funkcji db*() (patrz niżej), więc reszta appki nie musi wiedzieć o trybie.
+const APP_MODE_KEY = "notebook-app-mode";
+let appMode = "online";
+const LOCAL_USER = { id: "local-user", email: "" };
+function isOfflineModeSaved(){
+  try{ return localStorage.getItem(APP_MODE_KEY) === "offline"; }catch(e){ return false; }
+}
+function saveLocalState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ notebooks: state.notebooks, checked: state.checked })); }catch(e){}
+}
+function loadLocalState(){
+  let raw;
+  try{ raw = localStorage.getItem(STORAGE_KEY); }catch(e){ raw = null; }
+  let parsed = null;
+  try{ parsed = raw ? JSON.parse(raw) : null; }catch(e){ parsed = null; }
+  state = {
+    notebooks: (parsed && Array.isArray(parsed.notebooks)) ? parsed.notebooks : [],
+    checked: (parsed && parsed.checked) || {},
+    activeId: null
+  };
+  // uzupełnij pola, których stare/niepełne lokalne dane mogłyby nie mieć (np. sprzed dodania tagów)
+  state.notebooks.forEach(nb => {
+    nb.isOwner = true; nb.ownerId = LOCAL_USER.id; nb.isShared = false; nb.myRole = "owner";
+    nb.members = []; nb.memberCount = 1; nb.shareCode = nb.shareCode || null;
+    nb.tags = nb.tags || []; nb.attachments = nb.attachments || []; nb.deletedAt = nb.deletedAt || null;
+    nb.type = nb.type || "checklist"; nb.noteContent = nb.noteContent || "";
+    (nb.categories || []).forEach(cat => (cat.items || []).forEach(it => {
+      it.dueDate = it.dueDate || ""; it.dueTime = it.dueTime || ""; it.recurrence = it.recurrence || "";
+    }));
+  });
+}
+function updateModeUI(){
+  const offline = appMode === "offline";
+  document.getElementById("sharedTabBtn").classList.toggle("hidden", offline);
+  document.getElementById("profileTabLabel").textContent = offline ? "Ustawienia" : "Profil";
+  document.getElementById("accountSection").classList.toggle("hidden", offline);
+  document.getElementById("offlineNotice").classList.toggle("hidden", !offline);
+  const logoutBtn = document.getElementById("logoutBtn");
+  logoutBtn.title = offline ? "Wyjdź z trybu offline" : "Wyloguj się";
+  logoutBtn.setAttribute("aria-label", logoutBtn.title);
+}
+async function enterOfflineMode({ silent = false } = {}){
+  if(!silent){
+    const ok = await customConfirm(
+      "Dane będą zapisywane tylko na tym urządzeniu, bez synchronizacji i bez możliwości udostępniania. Będzie można później założyć konto i przenieść te notatniki.",
+      { title:"Kontynuować bez konta?", okLabel:"Kontynuuj" }
+    );
+    if(!ok) return;
+  }
+  appMode = "offline";
+  currentUser = LOCAL_USER;
+  currentProfile = { id: LOCAL_USER.id, username: "Ty", avatar_url: null };
+  try{ localStorage.setItem(APP_MODE_KEY, "offline"); }catch(e){}
+  loadLocalState();
+  document.getElementById("authScreen").classList.add("hidden");
+  document.getElementById("notebookScreen").classList.add("hidden");
+  document.querySelector(".footer-bar").classList.remove("hidden");
+  updateModeUI();
+  showTabBar();
+  showTab("mine");
+}
+function exitOfflineMode(){
+  appMode = "online";
+  currentUser = null;
+  currentProfile = null;
+  state = { notebooks: [], checked: {}, activeId: null };
+  try{ localStorage.removeItem(APP_MODE_KEY); }catch(e){}
+  hideTabBar();
+  document.querySelector(".footer-bar").classList.add("hidden");
+  showAuthScreen();
+}
+document.getElementById("offlineModeBtn").addEventListener("click", () => enterOfflineMode());
+
 /* ======================= LOGOWANIE ======================= */
 let authMode = "login"; // "login" | "signup"
 let currentUser = null;
@@ -1186,11 +1277,15 @@ function showAuthScreen(){
 
 sb.auth.onAuthStateChange((event, session) => {
   const user = session ? session.user : null;
-  const wasLoggedIn = !!currentUser;
-  currentUser = user;
+  const wasLoggedInOnline = appMode === "online" && !!currentUser;
   if(user){
-    if(!wasLoggedIn) boot();
-  } else {
+    // prawdziwe zalogowanie zawsze wygrywa z wcześniej zapamiętanym trybem offline
+    appMode = "online";
+    try{ localStorage.removeItem(APP_MODE_KEY); }catch(e){}
+    currentUser = user;
+    if(!wasLoggedInOnline) boot();
+  } else if(appMode !== "offline"){
+    currentUser = null;
     subscribeToNotebook(null);
     showAuthScreen();
   }
@@ -1385,7 +1480,6 @@ function customPrompt(message, defaultValue="", { title="Nazwa" } = {}){
   });
 }
 
-const STORAGE_KEY = "notebooks-app-state-v2"; // stara nazwa localStorage — używana tylko do jednorazowej migracji
 
 let state = { notebooks: [], checked: {}, activeId: null };
 let filter = "all"; // all | active | done
@@ -1541,6 +1635,9 @@ async function reloadNotebookData(nb){
 
 async function dbInsertNotebook({ name, color = null, isShared = false, type = "checklist", tags = [] }){
   lastLocalMutationAt = Date.now();
+  if(appMode === "offline"){
+    return { id: crypto.randomUUID(), name, color, is_shared: false, type, tags, share_code: null, note_content: "" };
+  }
   const { data, error } = await sb.from("notebooks").insert({ owner_id: currentUser.id, name, color, is_shared: isShared, type, tags }).select().single();
   if(error){
     // is_shared/type/tags nie istnieją jeszcze w bazie (migracja nie uruchomiona) — spróbuj bez nich,
@@ -1556,31 +1653,40 @@ async function dbInsertNotebook({ name, color = null, isShared = false, type = "
   return data;
 }
 async function dbUpdateNotebook(id, fields){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("notebooks").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
   if(error) dbErr(error, "Nie udało się zapisać zmian w notatniku");
 }
 async function dbDeleteNotebook(id){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("notebooks").delete().eq("id", id);
   if(error) dbErr(error, "Nie udało się usunąć notatnika");
 }
 
 async function dbInsertCategory(notebookId, { name, position = 0, collapsed = false }){
+  if(appMode === "offline"){
+    return { id: crypto.randomUUID(), notebook_id: notebookId, name, position, collapsed };
+  }
   const { data, error } = await sb.from("categories").insert({ notebook_id: notebookId, name, position, collapsed }).select().single();
   if(error){ dbErr(error, "Nie udało się utworzyć kategorii"); return null; }
   return data;
 }
 async function dbUpdateCategory(id, fields){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("categories").update(fields).eq("id", id);
   if(error) dbErr(error, "Nie udało się zapisać kategorii");
 }
 async function dbDeleteCategory(id){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("categories").delete().eq("id", id);
   if(error) dbErr(error, "Nie udało się usunąć kategorii");
 }
 async function dbReorderCategories(nb){
+  if(appMode === "offline"){ saveLocalState(); return; }
   await Promise.all(nb.categories.map((c, idx) => sb.from("categories").update({ position: idx }).eq("id", c.id)));
 }
 async function dbBulkSetCategoriesCollapsed(nb, collapsed){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const ids = nb.categories.map(c => c.id);
   if(!ids.length) return;
   const { error } = await sb.from("categories").update({ collapsed }).in("id", ids);
@@ -1588,20 +1694,26 @@ async function dbBulkSetCategoriesCollapsed(nb, collapsed){
 }
 
 async function dbInsertItem(categoryId, { text, note = "", qty = "", priority = false, checked = false, position = 0, dueDate = "", dueTime = "", recurrence = "" }){
+  if(appMode === "offline"){
+    return { id: crypto.randomUUID(), category_id: categoryId, text, note, qty, priority, checked, position, due_date: dueDate || null, due_time: dueTime || null, recurrence: recurrence || null };
+  }
   const { data, error } = await sb.from("items").insert({ category_id: categoryId, text, note, qty, priority, checked, position, due_date: dueDate || null, due_time: dueTime || null, recurrence: recurrence || null }).select().single();
   if(error){ dbErr(error, "Nie udało się dodać pozycji"); return null; }
   return data;
 }
 async function dbUpdateItem(id, fields){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("items").update(fields).eq("id", id);
   if(error) dbErr(error, "Nie udało się zapisać pozycji");
 }
 async function dbDeleteItem(id){
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("items").delete().eq("id", id);
   if(error) dbErr(error, "Nie udało się usunąć pozycji");
 }
 async function dbDeleteItems(ids){
   if(!ids.length) return;
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("items").delete().in("id", ids);
   if(error) dbErr(error, "Nie udało się usunąć pozycji");
 }
@@ -1626,6 +1738,7 @@ async function uploadAttachment(nb, itemId, file){
   return { id: data.id, itemId: data.item_id, url: data.url };
 }
 async function dbDeleteAttachment(att){
+  if(appMode === "offline") return; // załączniki nie są dostępne w trybie offline (patrz UI)
   const { error } = await sb.from("attachments").delete().eq("id", att.id);
   if(error) dbErr(error, "Nie udało się usunąć załącznika");
   const marker = "/attachments/";
@@ -1707,10 +1820,12 @@ function buildAttachmentsManager(nb, itemId, readOnly){
 
 async function dbBulkSetChecked(ids, checked){
   if(!ids.length) return;
+  if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("items").update({ checked }).in("id", ids);
   if(error) dbErr(error, "Nie udało się zaktualizować pozycji");
 }
 async function dbReorderItems(cat){
+  if(appMode === "offline"){ saveLocalState(); return; }
   await Promise.all(cat.items.map((it, idx) => sb.from("items").update({ position: idx }).eq("id", it.id)));
 }
 
@@ -1778,6 +1893,10 @@ let lastLocalMutationAt = 0;
 function touchNotebook(nb){
   lastLocalMutationAt = Date.now();
   if(nb) nb.updatedAt = Date.now();
+  // touchNotebook() jest już wołane przy KAŻDEJ mutacji (patrz komentarz o tłumieniu echa wyżej) —
+  // to najpewniejsze miejsce, żeby też zapisać stan lokalnie w trybie offline, zamiast dorzucać
+  // saveLocalState() do każdego pojedynczego miejsca w kodzie z osobna
+  if(appMode === "offline") saveLocalState();
 }
 
 function relativeTime(ts){
@@ -1896,7 +2015,7 @@ async function importNotebooksArray(notebooksArr, checkedMap){
       name: nb.name, color: nb.color || null, categories,
       type: nb.type || "checklist", noteContent: nb.noteContent || "", tags: nb.tags || []
     });
-    if(built){ state.notebooks.push(built); imported++; }
+    if(built){ state.notebooks.push(built); touchNotebook(built); imported++; }
   }
   return imported;
 }
@@ -2070,6 +2189,7 @@ function buildNbCard(nb){
         const built = await dbInsertNotebookTree(tree);
         if(!built) return;
         state.notebooks.push(built);
+        touchNotebook(built);
         renderMenu();
         toast("Utworzono kopię notatnika.", "success");
       }}
@@ -2080,9 +2200,14 @@ function buildNbCard(nb){
       items.push({ label:"Członkowie", icon: USER_SVG, onClick: () => showMembersDialog(nb) });
     }
     if(nb.isOwner){
+      // udostępnianie/zapraszanie wymaga serwera i konta drugiej osoby — nie ma sensu w trybie offline
+      if(appMode !== "offline"){
+        items.push(
+          { label:"Udostępnij", icon: LINK_SVG, onClick: () => showShareDialog(nb) },
+          { label:"Zaproś znajomego", icon: USER_PLUS_SVG, onClick: () => showInviteFriendDialog(nb) }
+        );
+      }
       items.push(
-        { label:"Udostępnij", icon: LINK_SVG, onClick: () => showShareDialog(nb) },
-        { label:"Zaproś znajomego", icon: USER_PLUS_SVG, onClick: () => showInviteFriendDialog(nb) },
         { label: (nb.archived ? "Przywróć z archiwum" : "Archiwizuj"), icon: ARCHIVE_SVG, onClick: () => {
           nb.archived = !nb.archived;
           touchNotebook(nb);
@@ -2149,6 +2274,7 @@ function renderMenu(){
     const built = await createNotebookViaFlow("Nazwa nowego notatnika:", "Nowa lista", "Nowy notatnik", false);
     if(!built) return;
     state.notebooks.push(built);
+    touchNotebook(built);
     openNotebook(built.id);
   }
   newCard.addEventListener("click", createNb);
@@ -2185,6 +2311,7 @@ async function openNotebook(id){
   hideTabBar();
   renderNotebook();
   subscribeToNotebook(getNotebook(id));
+  if(appMode === "offline") return; // localStorage jest już źródłem prawdy — nie ma czego dociągać z serwera
   // dociągnij świeże dane z serwera (na wypadek zmian od współedytorów sprzed otwarcia notatnika)
   const nb = getNotebook(id);
   if(nb){
@@ -2300,6 +2427,7 @@ let noteViewMode = "edit";
 let noteAutosaveTimer = null;
 let noteContentColumnMissingWarned = false;
 async function saveNoteContent(nb){
+  if(appMode === "offline") return; // touchNotebook() w ta.oninput już zapisał treść lokalnie
   const { error } = await sb.from("notebooks").update({ note_content: nb.noteContent, updated_at: new Date().toISOString() }).eq("id", nb.id);
   if(!error) return;
   if(isMissingTableError(error)){
@@ -2324,9 +2452,14 @@ function renderNoteEditor(nb, readOnly){
   previewToggleBtn.title = isPreview ? "Wróć do edycji" : "Podgląd Markdown";
   previewToggleBtn.setAttribute("aria-label", previewToggleBtn.title);
   if(isPreview){ previewBox.innerHTML = renderMarkdownToHtml(nb.noteContent); }
-  const noteAttWrap = document.getElementById("noteAttachmentsWrap");
-  noteAttWrap.innerHTML = "";
-  noteAttWrap.appendChild(buildAttachmentsManager(nb, null, readOnly));
+  // załączniki wymagają Supabase Storage — niedostępne w trybie offline (patrz Backend → Photo attachments)
+  const noteAttSection = document.getElementById("noteAttachmentsSection");
+  noteAttSection.classList.toggle("hidden", appMode === "offline");
+  if(appMode !== "offline"){
+    const noteAttWrap = document.getElementById("noteAttachmentsWrap");
+    noteAttWrap.innerHTML = "";
+    noteAttWrap.appendChild(buildAttachmentsManager(nb, null, readOnly));
+  }
   previewToggleBtn.onclick = () => {
     noteViewMode = isPreview ? "edit" : "preview";
     renderNoteEditor(nb, readOnly);
@@ -3575,7 +3708,7 @@ document.getElementById("saveUsernameBtn").addEventListener("click", async () =>
   if(ok) toast("Zapisano nick.", "success");
 });
 
-document.getElementById("logoutBtn").addEventListener("click", () => signOut());
+document.getElementById("logoutBtn").addEventListener("click", () => appMode === "offline" ? exitOfflineMode() : signOut());
 
 /* ======================= ZNAJOMI ======================= */
 async function loadFriendsData(){
@@ -3701,6 +3834,8 @@ function refreshNotebookInviteSections(){
 }
 
 async function renderProfile(){
+  updateModeUI();
+  if(appMode === "offline") return; // sekcja konta/znajomych jest ukryta — nic tu nie ma do wczytania
   document.getElementById("avatarPreview").src = avatarSrc(currentProfile);
   document.getElementById("usernameInput").value = (currentProfile && currentProfile.username) || "";
   document.getElementById("profileEmailLabel").textContent = currentUser.email;
@@ -3873,6 +4008,7 @@ function renderShared(){
     const built = await createNotebookViaFlow("Nazwa nowego wspólnego notatnika:", "Nowa wspólna lista", "Nowy wspólny notatnik", true);
     if(!built) return;
     state.notebooks.push(built);
+    touchNotebook(built);
     toast(`Utworzono „${built.name}”.`, "success");
     renderShared();
     showInviteFriendDialog(built);
@@ -3887,6 +4023,7 @@ function renderShared(){
 /* ======================= REALTIME ======================= */
 let realtimeChannel = null;
 function subscribeToNotebook(nb){
+  if(appMode === "offline") return; // brak serwera = nic do subskrybowania
   if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
   if(!nb) return;
   realtimeChannel = sb.channel(`notebook-${nb.id}`)
@@ -3962,6 +4099,12 @@ async function boot(){
   showTab("mine");
   subscribeGlobal();
 }
+
+// jeśli poprzednio wybrano tryb offline, wejdź w niego od razu — bez czekania na (i bez
+// potrzeby) sprawdzenia sesji Supabase, żeby appka realnie działała bez internetu.
+// Prawdziwe zalogowanie (onAuthStateChange wyżej) i tak ma nad tym pierwszeństwo, gdyby jednak
+// istniała ważna sesja.
+if(isOfflineModeSaved()) enterOfflineMode({ silent: true });
 </script>
 
 </body>
