@@ -963,6 +963,8 @@
 
 <script>
 /* ======================= SUPABASE ======================= */
+// anon key jest z założenia publiczny (i tak trafia do każdej przeglądarki) — o tym, kto co widzi
+// i może edytować, decydują reguły RLS w Postgresie (supabase/*.sql), a nie tajność klucza
 const SUPABASE_URL = "https://uvomhopvxsucnywuwnao.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2b21ob3B2eHN1Y255d3V3bmFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwMzcxNDksImV4cCI6MjEwMTYxMzE0OX0.d5h4kL327dI31jj7ymHAcZXpQOP_tF_N8tzo33uiWp8";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -990,6 +992,7 @@ const TRASH_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="cur
 const RESTORE_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`;
 const REPEAT_SVG = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`;
 
+/* ======================= DYKTOWANIE GŁOSOWE ======================= */
 // dyktowanie głosowe (Web Speech API) — działa w Chrome/Edge/Safari, brak wsparcia w Firefoksie,
 // więc przycisk chowamy zamiast pokazywać coś, co i tak nie zadziała.
 // interimResults zawsze włączone: bez tego krótkie, pojedyncze wypowiedzi (np. jedna pozycja
@@ -1277,6 +1280,9 @@ function showAuthScreen(){
   if(globalChannel){ sb.removeChannel(globalChannel); globalChannel = null; }
 }
 
+// jedyne miejsce, które przełącza appkę między ekranem logowania a danymi. Zdarzenie przychodzi
+// też przy odświeżeniu tokenu (TOKEN_REFRESHED) — wasLoggedInOnline pilnuje, żeby boot()
+// (pełne wczytanie danych) odpalało się tylko przy faktycznym przejściu do stanu zalogowania
 sb.auth.onAuthStateChange((event, session) => {
   const user = session ? session.user : null;
   const wasLoggedInOnline = appMode === "online" && !!currentUser;
@@ -1294,6 +1300,8 @@ sb.auth.onAuthStateChange((event, session) => {
 });
 
 /* ======================= TOASTY ======================= */
+// undoFn → toast dostaje przycisk „Cofnij” (albo opts.actionLabel) i wisi dłużej; opts.persist
+// wyłącza automatyczne znikanie (np. błędy migracji, komunikat o nowej wersji appki)
 function toast(msg, type="", undoFn=null, opts={}){
   const wrap = document.getElementById("toastWrap");
   const el = document.createElement("div");
@@ -1349,6 +1357,7 @@ function customConfirm(message, { title="Potwierdź", okLabel="Usuń" } = {}){
   });
 }
 
+/* ======================= SZABLONY / TWORZENIE NOTATNIKA ======================= */
 function svgIcon(pathsInner){
   return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${pathsInner}</svg>`;
 }
@@ -1483,6 +1492,12 @@ function customPrompt(message, defaultValue="", { title="Nazwa" } = {}){
 }
 
 
+/* ======================= STAN APLIKACJI ======================= */
+// state.notebooks to pełne drzewo w pamięci: notatnik → kategorie → pozycje; wszystkie render*()
+// czytają tylko stąd. Zaznaczenia są osobno w state.checked[itemId] — w tym samym kształcie
+// {notebooks, checked} zapisuje je tryb offline (localStorage) i eksport JSON.
+// Wzorzec każdej zmiany: najpierw mutacja `state` + touchNotebook() + render (optymistycznie,
+// bez czekania na sieć), a zapis db*() leci w tle i w razie błędu tylko pokazuje toast.
 let state = { notebooks: [], checked: {}, activeId: null };
 let filter = "all"; // all | active | done
 let searchQuery = "";
@@ -1504,6 +1519,9 @@ function isMissingTableError(err){
   return /does not exist|could not find the table|schema cache|bucket not found/i.test(err.message || "");
 }
 
+// pełne wczytanie wszystkich notatników, do których użytkownik ma dostęp (cudze odfiltrowuje RLS),
+// i złożenie ich w drzewo w `state`. Pozycje dociągamy osobno po id kategorii, bo tabela items
+// nie ma kolumny notebook_id.
 async function loadFromServer(){
   const { data: notebooks, error: nbErr } = await sb.from("notebooks").select("*").order("created_at");
   if(nbErr){ dbErr(nbErr, "Błąd wczytywania notatników"); return; }
@@ -1579,6 +1597,7 @@ async function loadFromServer(){
   });
 }
 
+// notatnik z choćby jednym członkiem traktujemy jako wspólny, nawet jeśli w bazie is_shared = false
 async function refreshMembership(nb){
   const { data, error } = await sb.from("notebook_members").select("*").eq("notebook_id", nb.id);
   if(error){ dbErr(error, "Błąd odświeżania członków notatnika"); return; }
@@ -1635,6 +1654,9 @@ async function reloadNotebookData(nb){
   await refreshAttachments(nb);
 }
 
+// Funkcje db*(): w trybie offline nie dotykają sieci — inserty zwracają wiersz w kształcie odpowiedzi
+// Supabase (z lokalnym UUID), a update/delete tylko zrzucają `state` do localStorage. Dzięki temu
+// kod wywołujący jest identyczny w obu trybach.
 async function dbInsertNotebook({ name, color = null, isShared = false, type = "checklist", tags = [] }){
   lastLocalMutationAt = Date.now();
   if(appMode === "offline"){
@@ -1659,6 +1681,8 @@ async function dbUpdateNotebook(id, fields){
   const { error } = await sb.from("notebooks").update({ ...fields, updated_at: new Date().toISOString() }).eq("id", id);
   if(error) dbErr(error, "Nie udało się zapisać zmian w notatniku");
 }
+// twarde usunięcie (kategorie i pozycje lecą kaskadowo) — wołane tylko z kosza;
+// zwykłe „Usuń notatnik” ustawia deleted_at przez dbUpdateNotebook()
 async function dbDeleteNotebook(id){
   if(appMode === "offline"){ saveLocalState(); return; }
   const { error } = await sb.from("notebooks").delete().eq("id", id);
@@ -1683,6 +1707,7 @@ async function dbDeleteCategory(id){
   const { error } = await sb.from("categories").delete().eq("id", id);
   if(error) dbErr(error, "Nie udało się usunąć kategorii");
 }
+// kolejność zapisujemy jako position = indeks w tablicy — osobny update na każdy wiersz, równolegle
 async function dbReorderCategories(nb){
   if(appMode === "offline"){ saveLocalState(); return; }
   await Promise.all(nb.categories.map((c, idx) => sb.from("categories").update({ position: idx }).eq("id", c.id)));
@@ -1720,6 +1745,9 @@ async function dbDeleteItems(ids){
   if(error) dbErr(error, "Nie udało się usunąć pozycji");
 }
 
+/* ======================= ZAŁĄCZNIKI (zdjęcia) ======================= */
+// plik trafia do bucketu Storage "attachments" pod <notebookId>/<uuid>.<ext>, a w tabeli
+// attachments zapisujemy tylko jego publiczny URL
 // itemId = null → załącznik przypięty do całej notatki (nie do konkretnej pozycji)
 async function uploadAttachment(nb, itemId, file){
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
@@ -1739,6 +1767,8 @@ async function uploadAttachment(nb, itemId, file){
   }
   return { id: data.id, itemId: data.item_id, url: data.url };
 }
+// ścieżkę pliku w Storage odtwarzamy z publicznego URL; usunięcie samego pliku jest "best effort" —
+// liczy się zniknięcie wiersza z bazy, osierocony plik niczego w appce nie psuje
 async function dbDeleteAttachment(att){
   if(appMode === "offline") return; // załączniki nie są dostępne w trybie offline (patrz UI)
   const { error } = await sb.from("attachments").delete().eq("id", att.id);
@@ -1820,6 +1850,7 @@ function buildAttachmentsManager(nb, itemId, readOnly){
   return wrap;
 }
 
+/* ======================= WARSTWA DANYCH c.d. (operacje zbiorcze, kopiowanie drzew) ======================= */
 async function dbBulkSetChecked(ids, checked){
   if(!ids.length) return;
   if(appMode === "offline"){ saveLocalState(); return; }
@@ -1832,6 +1863,8 @@ async function dbReorderItems(cat){
 }
 
 // wstawia cały notatnik (opcjonalnie z kategoriami/pozycjami) do bazy i zwraca gotowy obiekt do state.notebooks
+// (dbInsertCategoryTree to krok pomocniczy: jedna kategoria z pozycjami; pozycje wstawiane po kolei,
+// a nie równolegle, żeby position i kolejność w `cat.items` się zgadzały)
 async function dbInsertCategoryTree(notebookId, position, c){
   const catRow = await dbInsertCategory(notebookId, { name: c.name, position, collapsed: !!c.collapsed });
   if(!catRow) return null;
@@ -1901,6 +1934,7 @@ function touchNotebook(nb){
   if(appMode === "offline") saveLocalState();
 }
 
+/* ======================= POMOCNICZE: CZAS, TERMINY, POWTARZANIE ======================= */
 function relativeTime(ts){
   if(!ts) return "";
   const diff = Date.now() - ts;
@@ -1960,12 +1994,14 @@ function formatDueLabel(dueDate, dueTime){
   return dueTime ? `${label} ${dueTime}` : label;
 }
 
+/* ======================= POMOCNICZE: STATYSTYKI I ETYKIETY ======================= */
 function nbStats(nb){
   let total = 0, done = 0;
   nb.categories.forEach(cat => cat.items.forEach(it => { total++; if(state.checked[it.id]) done++; }));
   return { total, done, pct: total ? Math.round(done/total*100) : 0 };
 }
 
+// polska odmiana: 1 osoba / 2–4 osoby (ale 12–14 osób) / 5+ osób
 function peopleLabel(n){
   if(n === 1) return "1 osoba";
   const mod10 = n % 10, mod100 = n % 100;
@@ -1973,12 +2009,15 @@ function peopleLabel(n){
   return `${n} osób`;
 }
 
+// przerysowuje tylko tę listę notatników, która jest akurat widoczna (Moje albo Wspólne)
 function refreshListScreens(){
   if(currentTab === "mine") renderMenu();
   else if(currentTab === "shared") renderShared();
 }
 
 /* ======================= EKSPORT / IMPORT ======================= */
+// eksport to zrzut całego `state` (razem z id i state.checked) — import dopasowuje zaznaczenia
+// po starych id, ale same notatniki zawsze wstawia jako nowe, obok istniejących
 function doExport(){
   const data = JSON.stringify(state, null, 2);
   const blob = new Blob([data], { type:"application/json" });
@@ -2045,6 +2084,8 @@ document.getElementById("importFile").addEventListener("change", async (e) => {
 });
 
 /* ======================= POPOVER (rozwijane menu) ======================= */
+// naraz otwarty jest najwyżej jeden popover. Menu z openMenu() są budowane dynamicznie i usuwane
+// po zamknięciu, a statyczne menu z HTML (#moreActionsMenu) tylko się chowa — stąd isStatic
 let openPopover = null;
 function closePopover(){
   if(!openPopover) return;
@@ -2110,6 +2151,8 @@ function renderTagFilterBar(barEl, notebooks, activeTag, onSelect){
 }
 
 /* ======================= RENDER: MENU ======================= */
+// karta notatnika w siatce + menu „⋯” z akcjami zależnymi od roli: viewer nie zmienia nazwy/tagów,
+// tylko właściciel udostępnia, archiwizuje i usuwa; zwykły członek może jedynie opuścić notatnik
 function buildNbCard(nb){
   const s = nbStats(nb);
   const card = document.createElement("div");
@@ -2256,6 +2299,7 @@ function buildNbCard(nb){
   return card;
 }
 
+// zakładka „Moje”: tylko własne, niewspólne i nieusunięte notatniki (wspólne są w zakładce „Wspólne”)
 function renderMenu(){
   const grid = document.getElementById("menuGrid");
   grid.innerHTML = "";
@@ -2298,6 +2342,8 @@ function renderMenu(){
 
 /* ======================= RENDER: NOTATNIK ======================= */
 let returnTab = "mine";
+// najpierw natychmiastowy render z danych w pamięci, potem subskrypcja realtime i dociągnięcie
+// świeżej wersji z serwera — notatnik otwiera się od razu, bez czekania na sieć
 async function openNotebook(id){
   returnTab = currentTab;
   state.activeId = id;
@@ -2428,6 +2474,8 @@ function renderMarkdownToHtml(src){
 let noteViewMode = "edit";
 let noteAutosaveTimer = null;
 let noteContentColumnMissingWarned = false;
+// treść zwykłej notatki zapisujemy z debounce (600 ms po ostatnim znaku, patrz ta.oninput)
+// albo od razu przy opuszczeniu pola — żeby nie wysyłać zapytania przy każdym klawiszu
 async function saveNoteContent(nb){
   if(appMode === "offline") return; // touchNotebook() w ta.oninput już zapisał treść lokalnie
   const { error } = await sb.from("notebooks").update({ note_content: nb.noteContent, updated_at: new Date().toISOString() }).eq("id", nb.id);
@@ -2509,6 +2557,8 @@ function renderNoteEditor(nb, readOnly){
   }
 }
 
+// pełne przerysowanie otwartego notatnika z `state` — wołane po każdej zmianie i po realtime.
+// readOnly (rola viewer) tylko chowa akcje edycji w UI; faktycznie zapis blokuje RLS (migration_004).
 function renderNotebook(){
   const nb = getNotebook(state.activeId);
   if(!nb){ backToMenu(); return; }
@@ -2905,6 +2955,8 @@ function renderNotebook(){
     root.appendChild(catEl);
   });
 
+  // #categories przeżywa kolejne rendery, więc makeSortable podpinamy tylko raz — dlatego callback
+  // bierze notatnik z state.activeId zamiast z domknięcia (nb z pierwszego renderu mógł być innym notatnikiem)
   if(!root.dataset.sortableAttached){
     root.dataset.sortableAttached = "1";
     makeSortable(root, ".cat", ".drag-handle", (newIdOrder) => {
@@ -2935,6 +2987,7 @@ function fireConfetti(){
   }
 }
 
+// konfetti tylko raz przy dojściu do 100% — po odznaczeniu czegokolwiek „nagroda” się resetuje
 let lastCelebratedNb = null;
 function updateProgress(){
   const nb = getNotebook(state.activeId);
@@ -3054,6 +3107,7 @@ document.getElementById("sortSelect").addEventListener("change", (e) => {
   });
 });
 
+/* ======================= AKCJE W NOTATNIKU (kategorie, zaznaczenia, archiwum, kosz) ======================= */
 document.getElementById("addCatBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb || nb.myRole === "viewer" || nb.type === "note") return;
@@ -3137,6 +3191,8 @@ document.getElementById("deleteCheckedBtn").onclick = async () => {
   dbDeleteItems(removed.map(r => r.item.id));
   renderNotebook();
   toast(`Usunięto ${count} pozycji.`, "success", async () => {
+    // pozycje są już twardo usunięte z bazy, więc „Cofnij” wstawia je od nowa (z nowymi id)
+    // na dawne miejsca w kategoriach
     for(const r of removed){
       const cat = nb.categories.find(c => c.id === r.catId);
       if(!cat) continue;
@@ -3167,6 +3223,7 @@ document.getElementById("archiveNbBtn").onclick = () => {
     renderMenu();
   });
 };
+// „Usuń” = miękkie usunięcie do kosza (deleted_at); prawdziwy delete dopiero z poziomu kosza
 document.getElementById("deleteNbBtn").onclick = async () => {
   const nb = getNotebook(state.activeId);
   if(!nb) return;
@@ -3245,6 +3302,9 @@ document.getElementById("archiveToggle").addEventListener("click", () => {
 });
 
 /* ======================= UDOSTĘPNIANIE ======================= */
+// dwie drogi do wspólnego notatnika: link/kod (?join=<share_code> — dołącza każdy, kto go ma,
+// po potwierdzeniu nazwy) albo imienne zaproszenie znajomego (notebook_invites — zaproszony
+// musi je zaakceptować w Profilu lub zakładce Wspólne)
 function buildShareLink(code){
   const url = new URL(location.href);
   url.search = ""; url.hash = "";
@@ -3268,6 +3328,8 @@ async function showShareDialog(nb){
 }
 
 let currentInviteDialogNb = null;
+// samo zaproszenie idzie przez RPC invite_friend_to_notebook (security definer) — to baza sprawdza,
+// że wysyła właściciel i że adresat jest zaakceptowanym znajomym, a nie tylko ten dialog
 async function showInviteFriendDialog(nb){
   currentInviteDialogNb = nb;
   const dlg = document.getElementById("inviteFriendDialog");
@@ -3328,6 +3390,7 @@ function showProfileDialog(profile){
 }
 document.getElementById("viewProfileCloseBtn").addEventListener("click", () => document.getElementById("viewProfileDialog").close());
 
+/* ======================= TAGI ======================= */
 function renderTagsChipList(nb, container){
   container.innerHTML = "";
   (nb.tags || []).forEach(tag => {
@@ -3383,6 +3446,8 @@ function showTagsDialog(nb){
 document.getElementById("tagsCloseBtn").addEventListener("click", () => document.getElementById("tagsDialog").close());
 
 /* ======================= KOSZ ======================= */
+// kosz pokazuje tylko notatniki, których jesteś właścicielem; nic nie znika z niego samo —
+// zostaje tam do ręcznego przywrócenia albo „Usuń na stałe”
 function renderTrashList(){
   const list = document.getElementById("trashList");
   list.innerHTML = "";
@@ -3443,6 +3508,8 @@ function snippetAround(text, q){
   return (start > 0 ? "…" : "") + text.slice(start, end).trim() + (end < text.length ? "…" : "");
 }
 
+// szuka wyłącznie w danych już wczytanych do `state` (bez zapytań do serwera) — po nazwach,
+// tagach, kategoriach, pozycjach i treści notatek; wynik ucięty do 60 trafień
 function globalSearch(query){
   const q = query.trim().toLowerCase();
   if(!q) return [];
@@ -3533,6 +3600,9 @@ document.getElementById("globalSearchBtn2").innerHTML = SEARCH_SVG;
 document.getElementById("globalSearchBtn1").addEventListener("click", openGlobalSearchDialog);
 document.getElementById("globalSearchBtn2").addEventListener("click", openGlobalSearchDialog);
 
+/* ======================= CZŁONKOWIE / DOŁĄCZANIE PRZEZ KOD ======================= */
+// zmiana roli i usuwanie członków widoczne tylko dla właściciela; po stronie bazy pilnuje tego
+// polityka "members: owner updates role" (migration_004)
 async function showMembersDialog(nb){
   const dlg = document.getElementById("membersDialog");
   const list = document.getElementById("membersList");
@@ -3601,6 +3671,8 @@ function extractJoinCode(input){
   return input;
 }
 
+// dwa kroki: get_notebook_name_by_code zwraca samą nazwę do okna potwierdzenia (bez członkostwa
+// RLS nie pozwala jeszcze czytać notatnika), a dopiero po zgodzie join_notebook faktycznie dołącza
 async function joinNotebookByCode(code){
   if(!code) return;
   try{
@@ -3624,6 +3696,7 @@ document.getElementById("joinNotebookBtn").addEventListener("click", async () =>
   await joinNotebookByCode(extractJoinCode(input));
 });
 
+// po obsłużeniu usuwa ?join= z paska adresu, żeby odświeżenie strony nie próbowało dołączyć ponownie
 async function handleJoinParam(){
   const params = new URLSearchParams(location.search);
   const code = params.get("join");
@@ -3686,6 +3759,8 @@ const DEFAULT_AVATAR_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#8891a0" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>`
 );
 
+// stała ścieżka <userId>/avatar.<ext> + upsert nadpisuje stary plik; ?t= w URL omija cache
+// przeglądarki, która inaczej dalej pokazywałaby poprzednie zdjęcie spod tego samego adresu
 async function uploadAvatar(file){
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `${currentUser.id}/avatar.${ext}`;
@@ -3735,6 +3810,8 @@ document.getElementById("saveUsernameBtn").addEventListener("click", async () =>
 document.getElementById("logoutBtn").addEventListener("click", () => appMode === "offline" ? exitOfflineMode() : signOut());
 
 /* ======================= ZNAJOMI ======================= */
+// friend_requests to jedna tabela na zaproszenia i znajomości: status accepted = znajomi
+// (w obie strony), reszta dzieli się na przychodzące i wysłane
 async function loadFriendsData(){
   const { data, error } = await sb.from("friend_requests").select("*")
     .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
@@ -3778,6 +3855,8 @@ function mutualFriendsLabel(n){
   return `${n} wspólnych znajomych`;
 }
 
+// propozycje = wszyscy, którzy nie są jeszcze znajomymi, posortowani po liczbie wspólnych znajomych;
+// wymaga widoczności całego grafu zaakceptowanych znajomości (migration_009)
 async function loadSuggestedFriends(){
   const { data: profiles, error } = await sb.from("profiles").select("id,username,avatar_url").neq("id", currentUser.id);
   if(error){ dbErr(error, "Błąd wczytywania propozycji znajomych"); return []; }
@@ -4046,6 +4125,9 @@ function renderShared(){
 
 /* ======================= REALTIME ======================= */
 let realtimeChannel = null;
+// jeden kanał na aktualnie otwarty notatnik (poprzedni jest zamykany). Zmian w items nie da się
+// filtrować po notatniku (brak kolumny notebook_id), więc przychodzą zdarzenia ze wszystkich
+// widocznych dla nas notatników — refreshActiveNotebook() i tak przeładowuje tylko bieżący.
 function subscribeToNotebook(nb){
   if(appMode === "offline") return; // brak serwera = nic do subskrybowania
   if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
@@ -4058,6 +4140,8 @@ function subscribeToNotebook(nb){
     .subscribe();
 }
 const ECHO_SUPPRESS_MS = 1500;
+// zdarzenia przychodzą seriami (np. zmiana kolejności = update na każdy wiersz) — refreshPending
+// nie dopuszcza do kilku równoległych przeładowań tego samego notatnika
 let refreshPending = false;
 async function refreshActiveNotebook(){
   if(Date.now() - lastLocalMutationAt < ECHO_SUPPRESS_MS) return; // to najpewniej echo naszego własnego zapisu
@@ -4081,6 +4165,8 @@ function subscribeGlobal(){
     .on("postgres_changes", { event:"*", schema:"public", table:"friend_requests" }, () => { if(currentTab === "profile") renderProfile(); })
     .subscribe();
 }
+// listę notatników odświeżamy tylko, gdy żaden nie jest otwarty — otwarty ma własną subskrypcję
+// i własne odświeżanie, a przeładowanie całego `state` pod spodem mogłoby mu namieszać
 let topLevelRefreshPending = false;
 async function refreshTopLevel(){
   if(state.activeId || topLevelRefreshPending) return;
@@ -4093,6 +4179,8 @@ async function refreshTopLevel(){
 }
 
 /* ======================= MIGRACJA LOKALNYCH DANYCH ======================= */
+// notatniki z localStorage (tryb offline albo wersja appki sprzed kont) proponujemy przenieść
+// tylko na puste konto — żeby nie dublować ich przy każdym kolejnym logowaniu
 async function offerLocalImport(){
   if(state.notebooks.length > 0) return;
   let raw;
@@ -4111,6 +4199,8 @@ async function offerLocalImport(){
 }
 
 /* ======================= START ======================= */
+// start po zalogowaniu: notatniki i profil równolegle, potem ewentualne dołączenie z linku ?join=
+// i import lokalnych danych, na końcu globalna subskrypcja realtime
 async function boot(){
   await Promise.all([loadFromServer(), loadProfile()]);
   await handleJoinParam();

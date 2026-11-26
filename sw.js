@@ -1,3 +1,8 @@
+// Service worker Notatnika — pozwala zainstalować appkę jako PWA i otworzyć ją bez internetu.
+// Cała aplikacja to jeden index.html, więc w cache trzymamy tylko go + manifest i ikony.
+// CACHE_NAME jest wersjonowany: podbicie numeru przy wdrożeniu sprawia, że "activate" kasuje
+// stare cache, a skipWaiting() + clients.claim() przejmują otwarte karty od razu, bez czekania
+// na zamknięcie wszystkich (index.html pokazuje wtedy toast „Dostępna nowa wersja”).
 const CACHE_NAME = "notatnik-cache-v20";
 const ASSETS = [
   "./index.html",
@@ -8,6 +13,7 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
+    // błąd precache nie może zablokować instalacji — brakujące pliki dociągnie fetch niżej
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => {})
   );
   self.skipWaiting();
@@ -23,6 +29,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // zapisy (POST/PATCH/DELETE, np. do API Supabase) zawsze idą prosto do sieci
   if (event.request.method !== "GET") return;
 
   // dokument HTML (cała aplikacja): najpierw sieć, cache tylko jako fallback offline —
